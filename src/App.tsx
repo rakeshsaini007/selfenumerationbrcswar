@@ -354,12 +354,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      {/* Top Navigation Bar - 3-zone contract */}
+      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+        <div className="max-w-[1400px] mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
           <a
             href="#top"
-            className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+            className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 truncate"
           >
             UDISE स्व गणना पोर्टल
           </a>
@@ -367,14 +367,14 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main id="top" className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <main id="top" className="flex-1 w-full max-w-[1400px] mx-auto px-3.5 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {/* Page Heading */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 sm:gap-4 pb-3 border-b border-slate-200">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 text-balance">
+            <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 text-balance">
               विद्यालय कार्मिक स्व गणना डेटा प्रविष्टि
             </h1>
-            <p className="text-sm text-slate-600 mt-1.5">
+            <p className="text-xs sm:text-sm text-slate-600 mt-1">
               UDISE CODE दर्ज करने पर विद्यालय का नाम स्वतः प्राप्त होगा · पूर्व डेटा होने पर अपडेट विकल्प सक्रिय होगा
             </p>
           </div>
@@ -411,13 +411,13 @@ export default function App() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6" noValidate>
           {/* Section 1: UDISE Lookup & Auto-fetched School Name */}
           <section
             id="school-lookup"
-            className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6"
+            className="bg-white border border-slate-200 rounded-2xl sm:rounded-xl p-4 sm:p-6"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3.5 sm:mb-4">
               <h2 className="text-base font-semibold text-slate-900">
                 1. विद्यालय पहचान (UDISE CODE से स्वतः खोज)
               </h2>
@@ -437,7 +437,7 @@ export default function App() {
                 >
                   UDISE CODE <span className="text-rose-600">*</span>
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     id="udise-input"
                     type="text"
@@ -454,13 +454,13 @@ export default function App() {
                       }
                     }}
                     placeholder="उदा. 09050306501"
-                    className="flex-1 px-3.5 py-2.5 text-sm font-mono-code bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                    className="flex-1 min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm font-mono-code bg-white border border-slate-300 rounded-xl sm:rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                   />
                   <button
                     type="button"
                     onClick={() => void handleFetchUdise(udiseInput, true)}
                     disabled={lookupLoading || !udiseInput.trim()}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 text-sm font-medium text-white bg-slate-900 rounded-xl sm:rounded-lg hover:bg-slate-800 active:scale-[0.99] disabled:opacity-50 transition-all whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {lookupLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -489,7 +489,7 @@ export default function App() {
                     readOnly
                     value={schoolName}
                     placeholder="UDISE CODE दर्ज करने पर विद्यालय का नाम यहाँ दिखाई देगा"
-                    className={`w-full px-3.5 py-2.5 text-sm rounded-lg border font-medium focus:outline-none ${
+                    className={`w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl sm:rounded-lg border font-medium focus:outline-none ${
                       schoolName
                         ? 'bg-emerald-50/50 border-emerald-300 text-slate-900'
                         : 'bg-slate-50 border-slate-200 text-slate-500'
@@ -523,9 +523,9 @@ export default function App() {
           {/* Section 3: Headmaster / In-Charge Teacher Details (Filled Once) */}
           <section
             id="headmaster-info"
-            className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6"
+            className="bg-white border border-slate-200 rounded-2xl sm:rounded-xl p-4 sm:p-6"
           >
-            <div className="mb-4">
+            <div className="mb-3.5 sm:mb-4">
               <h2 className="text-base font-semibold text-slate-900">
                 2. प्रधानाध्यापक / इंचार्ज अध्यापक का विवरण (केवल एक बार भरें)
               </h2>
@@ -534,7 +534,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
               <div>
                 <label
                   htmlFor="headmaster-name"
@@ -551,7 +551,7 @@ export default function App() {
                   }
                   disabled={submitting}
                   placeholder="प्रधानाध्यापक / इंचार्ज अध्यापक का पूरा नाम"
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm bg-white border border-slate-300 rounded-xl sm:rounded-lg text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                 />
               </div>
 
@@ -573,7 +573,7 @@ export default function App() {
                   }
                   disabled={submitting}
                   placeholder="10 अंकों का मोबाइल नंबर"
-                  className="w-full px-3.5 py-2.5 text-sm font-mono-code bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm font-mono-code bg-white border border-slate-300 rounded-xl sm:rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                 />
               </div>
             </div>
@@ -591,7 +591,7 @@ export default function App() {
           </div>
 
           {/* Section 5: Submit / Update Action Bar */}
-          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-xl px-4 py-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="text-xs text-slate-600">
               {hasExistingData ? (
                 <span>
@@ -606,12 +606,12 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex items-center gap-3 ml-auto">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto sm:ml-auto">
               <button
                 type="button"
                 onClick={handleResetForm}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-xl sm:rounded-lg hover:bg-slate-50 active:scale-[0.99] disabled:opacity-50 transition-all whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>रीसेट करें</span>
@@ -620,7 +620,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={submitting || lookupLoading}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`inline-flex items-center justify-center gap-2 min-h-[48px] sm:min-h-[44px] px-6 py-2.5 text-sm font-semibold text-white rounded-xl sm:rounded-lg active:scale-[0.99] disabled:opacity-60 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   hasExistingData
                     ? 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-2 focus-visible:ring-amber-600'
                     : 'bg-blue-700 hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-700'

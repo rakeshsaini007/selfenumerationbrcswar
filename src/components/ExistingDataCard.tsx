@@ -24,14 +24,14 @@ export function ExistingDataCard({
   return (
     <section
       aria-label="पूर्व से दर्ज डेटा विवरण"
-      className="bg-white border border-amber-300 rounded-xl overflow-hidden"
+      className="bg-white border border-amber-300 rounded-2xl sm:rounded-xl overflow-hidden"
     >
-      <div className="px-5 py-4 bg-amber-50/70 border-b border-amber-200/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="px-4 py-4 sm:px-5 bg-amber-50/70 border-b border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-semibold text-slate-900">
               पूर्व से दर्ज डेटा (Data शीट में उपलब्ध)
             </h2>
@@ -52,7 +52,7 @@ export function ExistingDataCard({
         <button
           type="button"
           onClick={() => setExpanded((prev) => !prev)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3.5 py-2 sm:py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl sm:rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
           {expanded ? (
             <>
@@ -69,8 +69,8 @@ export function ExistingDataCard({
       </div>
 
       {expanded && (
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-100 text-sm">
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pb-4 border-b border-slate-100 text-sm">
             <div>
               <span className="block text-xs text-slate-500">
                 प्रधानाध्यापक / इंचार्ज अध्यापक का नाम
@@ -89,7 +89,48 @@ export function ExistingDataCard({
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+          {/* Mobile compact record list */}
+          <div className="md:hidden divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
+            {records.map((rec, idx) => (
+              <div key={`${rec.ehrmsCode}-${idx}`} className="p-3.5 space-y-2 text-xs bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-semibold text-sm text-slate-900 block">
+                      {idx + 1}. {rec.karmikName || '—'}
+                    </span>
+                    <span className="text-slate-600">{rec.designation || '—'}</span>
+                  </div>
+                  {rec.seId && (
+                    <span className="font-mono-code font-medium text-slate-800 shrink-0">
+                      {rec.seId}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1.5 border-t border-slate-100 text-slate-600">
+                  <div>
+                    <span className="text-slate-400 block">EHRMS CODE</span>
+                    <span className="font-mono-code text-slate-800">{rec.ehrmsCode || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">मोबाइल नंबर</span>
+                    <span className="font-mono-code text-slate-800">{rec.mobileNumber || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">मुखिया का नाम</span>
+                    <span className="text-slate-800">{rec.mukhiyaName || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">ग्राम</span>
+                    <span className="text-slate-800">{rec.village || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop summary table */}
+          <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-lg">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
