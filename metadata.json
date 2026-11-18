@@ -1,0 +1,6 @@
+{
+  "name": "UDISE विद्यालय कार्मिक स्व गणना पोर्टल",
+  "description": "UDISE कोड से विद्यालय विवरण खोज, प्रधानाध्यापक एवं कार्मिक स्व गणना डेटा प्रविष्टि तथा अपडेट पोर्टल।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
