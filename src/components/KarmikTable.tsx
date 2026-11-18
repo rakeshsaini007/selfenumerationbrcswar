@@ -45,16 +45,19 @@ function formatKarmikFieldValue(
   return rawValue;
 }
 
-const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ'] as const;
+const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ', 'अन्य'] as const;
 
-function parseEnumeratedBy(value: string): { choice: string; selfName: string } {
-  if (value === 'स्वयं') {
-    return { choice: 'स्वयं', selfName: '' };
+function parseEnumeratedBy(value: string): { choice: string; customName: string } {
+  const trimmed = value.trim();
+  for (const prefixChoice of ['स्वयं', 'अन्य'] as const) {
+    if (trimmed === prefixChoice || trimmed === `${prefixChoice} -`) {
+      return { choice: prefixChoice, customName: '' };
+    }
+    if (value.startsWith(`${prefixChoice} - `)) {
+      return { choice: prefixChoice, customName: value.slice(`${prefixChoice} - `.length) };
+    }
   }
-  if (value.startsWith('स्वयं - ')) {
-    return { choice: 'स्वयं', selfName: value.slice('स्वयं - '.length) };
-  }
-  return { choice: value, selfName: '' };
+  return { choice: value, customName: '' };
 }
 
 export function KarmikTable({
@@ -152,7 +155,8 @@ export function KarmikTable({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {KARMIK_TABLE_COLUMNS.map((col) => {
                     if (col.key === 'enumeratedBy') {
-                      const { choice, selfName } = parseEnumeratedBy(row.enumeratedBy);
+                      const { choice, customName } = parseEnumeratedBy(row.enumeratedBy);
+                      const requiresCustomName = choice === 'स्वयं' || choice === 'अन्य';
                       const isCustomLegacy =
                         Boolean(choice) &&
                         !ENUMERATED_BY_OPTIONS.includes(
@@ -175,11 +179,13 @@ export function KarmikTable({
                             disabled={disabled}
                             onChange={(e) => {
                               const nextChoice = e.target.value;
-                              if (nextChoice === 'स्वयं') {
+                              if (nextChoice === 'स्वयं' || nextChoice === 'अन्य') {
                                 onChangeRow(
                                   row.id,
                                   'enumeratedBy',
-                                  selfName ? `स्वयं - ${selfName}` : 'स्वयं'
+                                  nextChoice === choice && customName.trim()
+                                    ? `${nextChoice} - ${customName}`
+                                    : nextChoice
                                 );
                               } else {
                                 onChangeRow(row.id, 'enumeratedBy', nextChoice);
@@ -196,22 +202,23 @@ export function KarmikTable({
                             {isCustomLegacy && <option value={choice}>{choice}</option>}
                           </select>
 
-                          {choice === 'स्वयं' && (
+                          {requiresCustomName && (
                             <div>
                               <label
                                 htmlFor={`mobile-${row.id}-enumeratedBy-name`}
                                 className="block text-xs font-medium text-slate-600 mb-1"
                               >
-                                स्वयं करने वाले का नाम (UPPERCASE)
+                                {choice === 'स्वयं' ? 'स्वयं करने वाले का नाम' : 'अन्य व्यक्ति का नाम'} (UPPERCASE)
                                 <span className="text-rose-600 ml-0.5">*</span>
                               </label>
                               <input
                                 id={`mobile-${row.id}-enumeratedBy-name`}
                                 type="text"
                                 required
+                                aria-required="true"
                                 disabled={disabled}
-                                value={selfName}
-                                placeholder="अंग्रेज़ी बड़े अक्षरों में नाम लिखें"
+                                value={customName}
+                                placeholder="अंग्रेज़ी बड़े अक्षरों में नाम लिखें *"
                                 onChange={(e) => {
                                   const cleanedName = e.target.value
                                     .replace(/[^A-Za-z.\s]/g, '')
@@ -219,10 +226,14 @@ export function KarmikTable({
                                   onChangeRow(
                                     row.id,
                                     'enumeratedBy',
-                                    cleanedName ? `स्वयं - ${cleanedName}` : 'स्वयं'
+                                    cleanedName.trim() ? `${choice} - ${cleanedName}` : choice
                                   );
                                 }}
-                                className="w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                                className={`w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border rounded-xl text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:ring-2 disabled:bg-slate-100 ${
+                                  !customName.trim()
+                                    ? 'border-rose-300 focus:border-blue-600 focus:ring-blue-600/15'
+                                    : 'border-slate-300 focus:border-blue-600 focus:ring-blue-600/15'
+                                }`}
                               />
                             </div>
                           )}
@@ -316,7 +327,8 @@ export function KarmikTable({
 
                 {KARMIK_TABLE_COLUMNS.map((col) => {
                   if (col.key === 'enumeratedBy') {
-                    const { choice, selfName } = parseEnumeratedBy(row.enumeratedBy);
+                    const { choice, customName } = parseEnumeratedBy(row.enumeratedBy);
+                    const requiresCustomName = choice === 'स्वयं' || choice === 'अन्य';
                     const isCustomLegacy =
                       Boolean(choice) &&
                       !ENUMERATED_BY_OPTIONS.includes(
@@ -333,11 +345,13 @@ export function KarmikTable({
                             aria-label={`${col.label} - पंक्ति ${index + 1}`}
                             onChange={(e) => {
                               const nextChoice = e.target.value;
-                              if (nextChoice === 'स्वयं') {
+                              if (nextChoice === 'स्वयं' || nextChoice === 'अन्य') {
                                 onChangeRow(
                                   row.id,
                                   'enumeratedBy',
-                                  selfName ? `स्वयं - ${selfName}` : 'स्वयं'
+                                  nextChoice === choice && customName.trim()
+                                    ? `${nextChoice} - ${customName}`
+                                    : nextChoice
                                 );
                               } else {
                                 onChangeRow(row.id, 'enumeratedBy', nextChoice);
@@ -354,14 +368,16 @@ export function KarmikTable({
                             {isCustomLegacy && <option value={choice}>{choice}</option>}
                           </select>
 
-                          {choice === 'स्वयं' && (
+                          {requiresCustomName && (
                             <input
                               type="text"
                               required
+                              aria-required="true"
                               disabled={disabled}
-                              value={selfName}
-                              placeholder="नाम लिखें (UPPERCASE)"
-                              aria-label={`स्वयं करने वाले का नाम - पंक्ति ${index + 1}`}
+                              value={customName}
+                              placeholder="नाम लिखें * (अनिवार्य)"
+                              title={`"${choice}" चुनने पर नाम (UPPERCASE में) लिखना अनिवार्य है`}
+                              aria-label={`${choice === 'स्वयं' ? 'स्वयं करने वाले का नाम' : 'अन्य व्यक्ति का नाम'} (अनिवार्य) - पंक्ति ${index + 1}`}
                               onChange={(e) => {
                                 const cleanedName = e.target.value
                                   .replace(/[^A-Za-z.\s]/g, '')
@@ -369,10 +385,14 @@ export function KarmikTable({
                                 onChangeRow(
                                   row.id,
                                   'enumeratedBy',
-                                  cleanedName ? `स्वयं - ${cleanedName}` : 'स्वयं'
+                                  cleanedName.trim() ? `${choice} - ${cleanedName}` : choice
                                 );
                               }}
-                              className="w-full px-2.5 py-2 text-sm bg-white border border-blue-300 rounded-md text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                              className={`w-full px-2.5 py-2 text-sm bg-white border rounded-md text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:ring-2 disabled:bg-slate-100 ${
+                                !customName.trim()
+                                  ? 'border-rose-400 focus:border-blue-600 focus:ring-blue-600/15'
+                                  : 'border-blue-300 focus:border-blue-600 focus:ring-blue-600/15'
+                              }`}
                             />
                           )}
                         </div>

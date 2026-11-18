@@ -367,7 +367,8 @@ export default function App() {
         );
         return;
       }
-      if (!row.enumeratedBy.trim()) {
+      const enumVal = row.enumeratedBy.trim();
+      if (!enumVal) {
         showAlert(
           'error',
           'स्व गणना किसके द्वारा की गई अनिवार्य है',
@@ -375,13 +376,20 @@ export default function App() {
         );
         return;
       }
-      if (row.enumeratedBy.trim() === 'स्वयं') {
-        showAlert(
-          'error',
-          'स्वयं करने वाले का नाम अनिवार्य है',
-          `पंक्ति ${i + 1} (${row.karmikName}) में "स्वयं" चुनने के बाद नाम (UPPERCASE में) दर्ज करें।`
-        );
-        return;
+      for (const prefixChoice of ['स्वयं', 'अन्य'] as const) {
+        if (
+          enumVal === prefixChoice ||
+          enumVal === `${prefixChoice} -` ||
+          (enumVal.startsWith(`${prefixChoice} -`) &&
+            !enumVal.slice(`${prefixChoice} -`.length).replace(/[^A-Za-z]/g, '').trim())
+        ) {
+          showAlert(
+            'error',
+            `${prefixChoice} चुनने पर नाम अनिवार्य है`,
+            `पंक्ति ${i + 1} (${row.karmikName}) में "${prefixChoice}" चुनने के बाद नाम (UPPERCASE में) दर्ज करें।`
+          );
+          return;
+        }
       }
     }
 
@@ -389,7 +397,19 @@ export default function App() {
     setSubmitting(true);
 
     try {
-      const sanitizedRows = nonEmptyRows.map(({ id: _id, ...rest }) => rest);
+      const sanitizedRows = nonEmptyRows.map(({ id: _id, ...rest }) => {
+        let cleanedEnum = rest.enumeratedBy.trim();
+        for (const prefixChoice of ['स्वयं', 'अन्य'] as const) {
+          if (cleanedEnum.startsWith(`${prefixChoice} - `)) {
+            cleanedEnum = `${prefixChoice} - ${cleanedEnum.slice(`${prefixChoice} - `.length).trim()}`;
+            break;
+          }
+        }
+        return {
+          ...rest,
+          enumeratedBy: cleanedEnum,
+        };
+      });
       const response = await saveOrUpdateSchoolData({
         action: actionMode,
         mode: actionMode,
