@@ -358,7 +358,6 @@ export function KarmikTable({
                   {col.required && <span className="text-rose-600 ml-0.5">*</span>}
                 </th>
               ))}
-              <th className="py-3 px-3 text-center whitespace-nowrap w-20">हटाएं</th>
             </tr>
           </thead>
 
@@ -520,19 +519,6 @@ export function KarmikTable({
                     </td>
                   );
                 })}
-
-                <td className="p-1.5 text-center align-middle">
-                  <button
-                    type="button"
-                    onClick={() => onRemoveRow(row.id)}
-                    disabled={disabled || rows.length <= 1}
-                    title={rows.length <= 1 ? 'कम से कम एक पंक्ति आवश्यक है' : 'यह पंक्ति हटाएं'}
-                    aria-label={`पंक्ति ${index + 1} हटाएं`}
-                    className="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500 transition-colors cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
