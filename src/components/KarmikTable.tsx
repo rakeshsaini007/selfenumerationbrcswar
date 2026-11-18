@@ -39,11 +39,25 @@ function formatKarmikFieldValue(
   if (col.key === 'ehrmsCode') {
     return rawValue.replace(/[^A-Za-z0-9\-/]/g, '').toUpperCase();
   }
+  if (col.key === 'designation') {
+    return rawValue;
+  }
   if (col.type !== 'date') {
     return rawValue.toUpperCase();
   }
   return rawValue;
 }
+
+const DESIGNATION_OPTIONS = [
+  'प्रधानाध्यापक',
+  'इंचार्ज प्रधानाध्यापक',
+  'सहायक अध्यापक',
+  'शिक्षामित्र',
+  'अनुदेशक',
+  'परिचारक',
+  'सफाईकर्मी',
+  'आंगनवाड़ी',
+] as const;
 
 const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ', 'अन्य'] as const;
 
@@ -96,18 +110,6 @@ export function KarmikTable({
           <span>नया कार्मिक जोड़ें</span>
         </button>
       </div>
-
-      {/* Datalist suggestions for fast data entry */}
-      <datalist id="designation-suggestions">
-        <option value="प्रधानाध्यापक" />
-        <option value="इंचार्ज प्रधानाध्यापक" />
-        <option value="सहायक अध्यापक" />
-        <option value="शिक्षामित्र" />
-        <option value="अनुदेशक" />
-        <option value="परिचारक" />
-        <option value="सफाईकर्मी" />
-        <option value="आंगनवाड़ी" />
-      </datalist>
 
       {/* Mobile Touch-Friendly Stacked Entry Cards (< md) */}
       <div className="md:hidden divide-y divide-slate-200">
@@ -177,6 +179,7 @@ export function KarmikTable({
                             value={choice}
                             required={col.required}
                             disabled={disabled}
+                            translate="no"
                             onChange={(e) => {
                               const nextChoice = e.target.value;
                               if (nextChoice === 'स्वयं' || nextChoice === 'अन्य') {
@@ -191,15 +194,19 @@ export function KarmikTable({
                                 onChangeRow(row.id, 'enumeratedBy', nextChoice);
                               }
                             }}
-                            className="w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                            className="notranslate w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
                           >
                             <option value="">-- चुनें --</option>
                             {ENUMERATED_BY_OPTIONS.map((opt) => (
-                              <option key={opt} value={opt}>
+                              <option key={opt} value={opt} translate="no" className="notranslate">
                                 {opt}
                               </option>
                             ))}
-                            {isCustomLegacy && <option value={choice}>{choice}</option>}
+                            {isCustomLegacy && (
+                              <option value={choice} translate="no" className="notranslate">
+                                {choice}
+                              </option>
+                            )}
                           </select>
 
                           {requiresCustomName && (
@@ -241,8 +248,46 @@ export function KarmikTable({
                       );
                     }
 
-                    const listId =
-                      col.key === 'designation' ? 'designation-suggestions' : undefined;
+                    if (col.key === 'designation') {
+                      const isCustomDesignation =
+                        Boolean(row.designation) &&
+                        !DESIGNATION_OPTIONS.includes(
+                          row.designation as (typeof DESIGNATION_OPTIONS)[number]
+                        );
+
+                      return (
+                        <div key={col.key}>
+                          <label
+                            htmlFor={`mobile-${row.id}-${col.key}`}
+                            className="block text-xs font-semibold text-slate-700 mb-1.5"
+                          >
+                            {col.label}
+                            {col.required && <span className="text-rose-600 ml-0.5">*</span>}
+                          </label>
+                          <select
+                            id={`mobile-${row.id}-${col.key}`}
+                            value={row.designation}
+                            required={col.required}
+                            disabled={disabled}
+                            translate="no"
+                            onChange={(e) => onChangeRow(row.id, 'designation', e.target.value)}
+                            className="notranslate w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                          >
+                            <option value="">-- पद चुनें --</option>
+                            {DESIGNATION_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt} translate="no" className="notranslate">
+                                {opt}
+                              </option>
+                            ))}
+                            {isCustomDesignation && (
+                              <option value={row.designation} translate="no" className="notranslate">
+                                {row.designation}
+                              </option>
+                            )}
+                          </select>
+                        </div>
+                      );
+                    }
 
                     const isInvalidSeId =
                       col.key === 'seId' &&
@@ -262,7 +307,6 @@ export function KarmikTable({
                           id={`mobile-${row.id}-${col.key}`}
                           type={col.type || 'text'}
                           inputMode={col.key === 'mobileNumber' ? 'numeric' : undefined}
-                          list={listId}
                           value={row[col.key]}
                           maxLength={col.maxLength}
                           required={col.required}
@@ -342,6 +386,7 @@ export function KarmikTable({
                             value={choice}
                             required={col.required}
                             disabled={disabled}
+                            translate="no"
                             aria-label={`${col.label} - पंक्ति ${index + 1}`}
                             onChange={(e) => {
                               const nextChoice = e.target.value;
@@ -357,15 +402,19 @@ export function KarmikTable({
                                 onChangeRow(row.id, 'enumeratedBy', nextChoice);
                               }
                             }}
-                            className="w-full px-2.5 py-2 text-sm bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                            className="notranslate w-full px-2.5 py-2 text-sm bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
                           >
                             <option value="">-- चुनें --</option>
                             {ENUMERATED_BY_OPTIONS.map((opt) => (
-                              <option key={opt} value={opt}>
+                              <option key={opt} value={opt} translate="no" className="notranslate">
                                 {opt}
                               </option>
                             ))}
-                            {isCustomLegacy && <option value={choice}>{choice}</option>}
+                            {isCustomLegacy && (
+                              <option value={choice} translate="no" className="notranslate">
+                                {choice}
+                              </option>
+                            )}
                           </select>
 
                           {requiresCustomName && (
@@ -400,8 +449,39 @@ export function KarmikTable({
                     );
                   }
 
-                  const listId =
-                    col.key === 'designation' ? 'designation-suggestions' : undefined;
+                  if (col.key === 'designation') {
+                    const isCustomDesignation =
+                      Boolean(row.designation) &&
+                      !DESIGNATION_OPTIONS.includes(
+                        row.designation as (typeof DESIGNATION_OPTIONS)[number]
+                      );
+
+                    return (
+                      <td key={col.key} className="p-1.5 border-r border-slate-200 align-middle">
+                        <select
+                          value={row.designation}
+                          required={col.required}
+                          disabled={disabled}
+                          translate="no"
+                          aria-label={`${col.label} - पंक्ति ${index + 1}`}
+                          onChange={(e) => onChangeRow(row.id, 'designation', e.target.value)}
+                          className="notranslate w-full px-2.5 py-2 text-sm bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                        >
+                          <option value="">-- पद चुनें --</option>
+                          {DESIGNATION_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt} translate="no" className="notranslate">
+                              {opt}
+                            </option>
+                          ))}
+                          {isCustomDesignation && (
+                            <option value={row.designation} translate="no" className="notranslate">
+                              {row.designation}
+                            </option>
+                          )}
+                        </select>
+                      </td>
+                    );
+                  }
 
                   const isInvalidSeId =
                     col.key === 'seId' &&
@@ -412,7 +492,6 @@ export function KarmikTable({
                     <td key={col.key} className="p-1.5 border-r border-slate-200 align-middle">
                       <input
                         type={col.type || 'text'}
-                        list={listId}
                         value={row[col.key]}
                         maxLength={col.maxLength}
                         required={col.required}
