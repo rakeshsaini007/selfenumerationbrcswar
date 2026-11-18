@@ -32,7 +32,8 @@ const DATA_HEADERS = [
   "स्व गणना आइडी(SE ID)",
   "स्व गणना दिनांक",
   "स्व गणना किसके द्वारा की गई",
-  "न्याय पंचायत"
+  "न्याय पंचायत",
+  "Timestamp"
 ];
 
 /**
@@ -61,11 +62,13 @@ function ensureDataHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(DATA_HEADERS);
     sheet.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight("bold");
-  } else {
-    const lastHeaderCol = DATA_HEADERS.length;
-    const existingHeader = String(sheet.getRange(1, lastHeaderCol).getDisplayValue() || "").trim();
-    if (!existingHeader) {
-      sheet.getRange(1, lastHeaderCol).setValue(DATA_HEADERS[lastHeaderCol - 1]).setFontWeight("bold");
+    return;
+  }
+  const existingHeaders = sheet.getRange(1, 1, 1, DATA_HEADERS.length).getDisplayValues()[0];
+  for (let colIdx = 0; colIdx < DATA_HEADERS.length; colIdx++) {
+    const existing = String(existingHeaders[colIdx] || "").trim();
+    if (!existing) {
+      sheet.getRange(1, colIdx + 1).setValue(DATA_HEADERS[colIdx]).setFontWeight("bold");
     }
   }
 }
@@ -75,6 +78,18 @@ function findNyayPanchayatColIndex(headersRow, fallbackIndex) {
     for (let c = 0; c < headersRow.length; c++) {
       const h = String(headersRow[c] || "").trim().toLowerCase();
       if (h.indexOf("न्याय") !== -1 || h.indexOf("nyay") !== -1 || h.indexOf("panchayat") !== -1) {
+        return c;
+      }
+    }
+  }
+  return fallbackIndex;
+}
+
+function findTimestampColIndex(headersRow, fallbackIndex) {
+  if (Array.isArray(headersRow)) {
+    for (let c = 0; c < headersRow.length; c++) {
+      const h = String(headersRow[c] || "").trim().toLowerCase();
+      if (h.indexOf("timestamp") !== -1 || h.indexOf("समय") !== -1 || h.indexOf("दिनांक एवं समय") !== -1) {
         return c;
       }
     }
@@ -125,10 +140,12 @@ function lookupByUdise(udiseInput) {
   const existingRecords = [];
   let headmasterName = "";
   let headmasterMobile = "";
+  let lastTimestamp = "";
 
   if (dataSheet && dataSheet.getLastRow() > 1) {
     const dataValues = dataSheet.getDataRange().getDisplayValues();
     const dataNyayCol = findNyayPanchayatColIndex(dataValues[0], 16);
+    const dataTimestampCol = findTimestampColIndex(dataValues[0], 17);
 
     for (let i = 1; i < dataValues.length; i++) {
       const row = dataValues[i];
@@ -146,6 +163,10 @@ function lookupByUdise(udiseInput) {
         if (!headmasterMobile && row[3]) {
           headmasterMobile = String(row[3]).trim();
         }
+        const rowTimestamp = String(row[dataTimestampCol] || "").trim();
+        if (rowTimestamp) {
+          lastTimestamp = rowTimestamp;
+        }
         existingRecords.push({
           rowIndex: i + 1,
           karmikName: String(row[4] || "").trim(),
@@ -159,7 +180,8 @@ function lookupByUdise(udiseInput) {
           village: String(row[12] || "").trim(),
           seId: String(row[13] || "").trim(),
           selfEnumDate: String(row[14] || "").trim(),
-          enumeratedBy: String(row[15] || "").trim()
+          enumeratedBy: String(row[15] || "").trim(),
+          timestamp: rowTimestamp
         });
       }
     }
@@ -174,6 +196,7 @@ function lookupByUdise(udiseInput) {
     hasExistingData: existingRecords.length > 0,
     headmasterName: headmasterName,
     headmasterMobile: headmasterMobile,
+    lastTimestamp: lastTimestamp,
     existingRecords: existingRecords
   };
 }
@@ -267,7 +290,10 @@ function saveOrUpdateData(payload) {
       dataSheet.deleteRow(existingRowIndices[i]);
     }
 
-    // Build matrix of rows to append
+    // Build matrix of rows to append with submit/update timestamp
+    const timeZone = ss.getSpreadsheetTimeZone() || "Asia/Kolkata";
+    const submitTimestamp = Utilities.formatDate(new Date(), timeZone, "dd/MM/yyyy HH:mm:ss");
+
     const newMatrix = rows.map(function (item) {
       return [
         targetUdise,
@@ -286,14 +312,15 @@ function saveOrUpdateData(payload) {
         String(item.seId || "").trim(),
         String(item.selfEnumDate || "").trim(),
         String(item.enumeratedBy || "").trim(),
-        nyayPanchayat
+        nyayPanchayat,
+        submitTimestamp
       ];
     });
 
     const startRow = dataSheet.getLastRow() + 1;
     const writeRange = dataSheet.getRange(startRow, 1, newMatrix.length, DATA_HEADERS.length);
 
-    // Format text-sensitive columns (UDISE, mobiles, EHRMS, SE ID, date) as plain text so leading zeros stay intact
+    // Format text-sensitive columns (UDISE, mobiles, EHRMS, SE ID, date, timestamp) as plain text so leading zeros stay intact
     writeRange.setNumberFormat("@");
     writeRange.setValues(newMatrix);
 
@@ -301,6 +328,7 @@ function saveOrUpdateData(payload) {
       success: true,
       mode: wasUpdate ? "update" : "save",
       savedCount: newMatrix.length,
+      timestamp: submitTimestamp,
       message: wasUpdate
         ? "डेटा सफलतापूर्वक अपडेट हो गया है (" + newMatrix.length + " कार्मिक)।"
         : "डेटा सफलतापूर्वक सेव हो गया है (" + newMatrix.length + " कार्मिक)।"

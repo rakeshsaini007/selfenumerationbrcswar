@@ -8,6 +8,7 @@ interface ExistingDataCardProps {
   nyayPanchayat?: string;
   headmasterName: string;
   headmasterMobile: string;
+  lastTimestamp?: string;
   records: ExistingKarmikRecord[];
 }
 
@@ -17,6 +18,7 @@ export function ExistingDataCard({
   nyayPanchayat,
   headmasterName,
   headmasterMobile,
+  lastTimestamp,
   records,
 }: ExistingDataCardProps) {
   const [expanded, setExpanded] = useState(true);
@@ -53,6 +55,14 @@ export function ExistingDataCard({
               <span className="font-mono-code font-medium text-amber-900">
                 कुल {records.length} कार्मिक दर्ज
               </span>
+              {lastTimestamp && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    अंतिम सबमिट: <span className="font-mono-code font-medium text-slate-800">{lastTimestamp}</span>
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>

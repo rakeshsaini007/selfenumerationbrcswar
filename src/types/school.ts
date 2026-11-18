@@ -16,6 +16,7 @@ export interface KarmikRow {
 
 export interface ExistingKarmikRecord extends Omit<KarmikRow, 'id'> {
   rowIndex?: number;
+  timestamp?: string;
 }
 
 export interface SchoolLookupResponse {
@@ -28,6 +29,7 @@ export interface SchoolLookupResponse {
   hasExistingData: boolean;
   headmasterName: string;
   headmasterMobile: string;
+  lastTimestamp?: string;
   existingRecords: ExistingKarmikRecord[];
 }
 
@@ -52,6 +54,7 @@ export interface SaveUpdateResponse {
   success: boolean;
   mode?: 'save' | 'update';
   savedCount?: number;
+  timestamp?: string;
   message?: string;
   error?: string;
 }

@@ -44,6 +44,7 @@ export default function App() {
     nyayPanchayat: string;
     headmasterName: string;
     headmasterMobile: string;
+    lastTimestamp?: string;
     records: ExistingKarmikRecord[];
   } | null>(null);
 
@@ -120,6 +121,7 @@ export default function App() {
             nyayPanchayat: result.nyayPanchayat || '',
             headmasterName: result.headmasterName,
             headmasterMobile: result.headmasterMobile,
+            lastTimestamp: result.lastTimestamp || '',
             records: result.existingRecords,
           });
           setHeadmasterName(result.headmasterName || '');
@@ -630,6 +632,7 @@ export default function App() {
               nyayPanchayat={savedSnapshot.nyayPanchayat}
               headmasterName={savedSnapshot.headmasterName}
               headmasterMobile={savedSnapshot.headmasterMobile}
+              lastTimestamp={savedSnapshot.lastTimestamp}
               records={savedSnapshot.records}
             />
           )}
