@@ -97,8 +97,8 @@ export default function App() {
       setLookupError('');
 
       try {
+        setLastFetchedUdise(cleaned);
         const result = await lookupSchoolByUdise(cleaned);
-        setLastFetchedUdise(result.udiseCode);
         setFoundInSchoolList(result.foundInSchoolList);
         setSchoolName(result.schoolName || '');
 
