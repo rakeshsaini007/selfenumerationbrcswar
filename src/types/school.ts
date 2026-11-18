@@ -24,6 +24,7 @@ export interface SchoolLookupResponse {
   udiseCode: string;
   foundInSchoolList: boolean;
   schoolName: string;
+  nyayPanchayat?: string;
   hasExistingData: boolean;
   headmasterName: string;
   headmasterMobile: string;
@@ -33,6 +34,7 @@ export interface SchoolLookupResponse {
 export interface SchoolDirectoryItem {
   udiseCode: string;
   schoolName: string;
+  nyayPanchayat?: string;
 }
 
 export interface SaveUpdatePayload {
@@ -40,6 +42,7 @@ export interface SaveUpdatePayload {
   mode: 'save' | 'update';
   udiseCode: string;
   schoolName: string;
+  nyayPanchayat: string;
   headmasterName: string;
   headmasterMobile: string;
   rows: Omit<KarmikRow, 'id'>[];
@@ -68,24 +71,28 @@ export const KARMIK_TABLE_COLUMNS: {
   mono?: boolean;
   minWidth: string;
   maxLength?: number;
+  required?: boolean;
 }[] = [
   {
     key: 'karmikName',
     label: 'कार्मिक का नाम',
     placeholder: 'कार्मिक का पूरा नाम',
     minWidth: 'min-w-[180px]',
+    required: true,
   },
   {
     key: 'designation',
     label: 'पद नाम',
     placeholder: 'जैसे: सहायक अध्यापक',
     minWidth: 'min-w-[165px]',
+    required: true,
   },
   {
     key: 'officeName',
     label: 'कार्यालय का नाम',
     placeholder: 'कार्यालय / विद्यालय',
     minWidth: 'min-w-[175px]',
+    required: true,
   },
   {
     key: 'departmentName',
@@ -105,12 +112,14 @@ export const KARMIK_TABLE_COLUMNS: {
     label: 'मुखिया का नाम',
     placeholder: 'परिवार के मुखिया का नाम',
     minWidth: 'min-w-[170px]',
+    required: true,
   },
   {
     key: 'fatherHusbandName',
     label: 'पिता/पति का नाम',
     placeholder: 'पिता या पति का नाम',
     minWidth: 'min-w-[170px]',
+    required: true,
   },
   {
     key: 'mobileNumber',
@@ -120,20 +129,23 @@ export const KARMIK_TABLE_COLUMNS: {
     mono: true,
     minWidth: 'min-w-[140px]',
     maxLength: 10,
+    required: true,
   },
   {
     key: 'village',
     label: 'ग्राम',
     placeholder: 'ग्राम का नाम',
     minWidth: 'min-w-[145px]',
+    required: true,
   },
   {
     key: 'seId',
     label: 'स्व गणना आइडी(SE ID)',
-    placeholder: 'P12345678945',
+    placeholder: '',
     mono: true,
     minWidth: 'min-w-[165px]',
     maxLength: 12,
+    required: true,
   },
   {
     key: 'selfEnumDate',
@@ -142,12 +154,14 @@ export const KARMIK_TABLE_COLUMNS: {
     type: 'date',
     mono: true,
     minWidth: 'min-w-[155px]',
+    required: true,
   },
   {
     key: 'enumeratedBy',
     label: 'स्व गणना किसके द्वारा की गई',
-    placeholder: 'स्वयं / अन्य का नाम',
-    minWidth: 'min-w-[190px]',
+    placeholder: 'चुनें',
+    minWidth: 'min-w-[215px]',
+    required: true,
   },
 ];
 

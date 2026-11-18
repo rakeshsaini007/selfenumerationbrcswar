@@ -30,6 +30,7 @@ export default function App() {
   // School lookup state
   const [udiseInput, setUdiseInput] = useState('');
   const [schoolName, setSchoolName] = useState('');
+  const [nyayPanchayat, setNyayPanchayat] = useState('');
   const [foundInSchoolList, setFoundInSchoolList] = useState<boolean | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState('');
@@ -40,6 +41,7 @@ export default function App() {
   const [savedSnapshot, setSavedSnapshot] = useState<{
     udiseCode: string;
     schoolName: string;
+    nyayPanchayat: string;
     headmasterName: string;
     headmasterMobile: string;
     records: ExistingKarmikRecord[];
@@ -76,6 +78,7 @@ export default function App() {
       if (!cleaned) {
         setLookupError('');
         setSchoolName('');
+        setNyayPanchayat('');
         setFoundInSchoolList(null);
         setHasExistingData(false);
         setSavedSnapshot(null);
@@ -101,6 +104,7 @@ export default function App() {
         const result = await lookupSchoolByUdise(cleaned);
         setFoundInSchoolList(result.foundInSchoolList);
         setSchoolName(result.schoolName || '');
+        setNyayPanchayat(result.nyayPanchayat || '');
 
         if (!result.foundInSchoolList && !result.hasExistingData) {
           setLookupError(
@@ -113,6 +117,7 @@ export default function App() {
           setSavedSnapshot({
             udiseCode: result.udiseCode,
             schoolName: result.schoolName,
+            nyayPanchayat: result.nyayPanchayat || '',
             headmasterName: result.headmasterName,
             headmasterMobile: result.headmasterMobile,
             records: result.existingRecords,
@@ -166,6 +171,7 @@ export default function App() {
     const trimmed = udiseInput.trim();
     if (!trimmed) {
       setSchoolName('');
+      setNyayPanchayat('');
       setFoundInSchoolList(null);
       setLookupError('');
       setHasExistingData(false);
@@ -212,6 +218,7 @@ export default function App() {
   const handleResetForm = () => {
     setUdiseInput('');
     setSchoolName('');
+    setNyayPanchayat('');
     setFoundInSchoolList(null);
     setLookupError('');
     setLastFetchedUdise('');
@@ -291,24 +298,88 @@ export default function App() {
       if (!row.karmikName.trim()) {
         showAlert(
           'error',
-          'कार्मिक का नाम आवश्यक है',
+          'कार्मिक का नाम अनिवार्य है',
           `पंक्ति ${i + 1} में "कार्मिक का नाम" दर्ज करें।`
         );
         return;
       }
-      if (row.mobileNumber.trim() && !/^\d{10}$/.test(row.mobileNumber.trim())) {
+      if (!row.designation.trim()) {
         showAlert(
           'error',
-          'अमान्य कार्मिक मोबाइल नंबर',
+          'पद नाम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "पद नाम" दर्ज करें।`
+        );
+        return;
+      }
+      if (!row.officeName.trim()) {
+        showAlert(
+          'error',
+          'कार्यालय का नाम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "कार्यालय का नाम" दर्ज करें।`
+        );
+        return;
+      }
+      if (!row.mukhiyaName.trim()) {
+        showAlert(
+          'error',
+          'मुखिया का नाम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "मुखिया का नाम" दर्ज करें।`
+        );
+        return;
+      }
+      if (!row.fatherHusbandName.trim()) {
+        showAlert(
+          'error',
+          'पिता/पति का नाम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "पिता/पति का नाम" दर्ज करें।`
+        );
+        return;
+      }
+      if (!/^\d{10}$/.test(row.mobileNumber.trim())) {
+        showAlert(
+          'error',
+          'मोबाइल नंबर अनिवार्य है',
           `पंक्ति ${i + 1} (${row.karmikName}) में 10 अंकों का मान्य मोबाइल नंबर दर्ज करें।`
         );
         return;
       }
-      if (row.seId.trim() && !/^P\d{11}$/.test(row.seId.trim())) {
+      if (!row.village.trim()) {
         showAlert(
           'error',
-          'अमान्य स्व गणना आइडी (SE ID)',
+          'ग्राम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "ग्राम" दर्ज करें।`
+        );
+        return;
+      }
+      if (!/^P\d{11}$/.test(row.seId.trim())) {
+        showAlert(
+          'error',
+          'स्व गणना आइडी (SE ID) अनिवार्य है',
           `पंक्ति ${i + 1} (${row.karmikName}) में स्व गणना आइडी "P" से शुरू होकर ठीक 11 अंकों की होनी चाहिए (उदा. P12345678945)।`
+        );
+        return;
+      }
+      if (!row.selfEnumDate.trim()) {
+        showAlert(
+          'error',
+          'स्व गणना दिनांक अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "स्व गणना दिनांक" चुनें।`
+        );
+        return;
+      }
+      if (!row.enumeratedBy.trim()) {
+        showAlert(
+          'error',
+          'स्व गणना किसके द्वारा की गई अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "स्व गणना किसके द्वारा की गई" चुनें।`
+        );
+        return;
+      }
+      if (row.enumeratedBy.trim() === 'स्वयं') {
+        showAlert(
+          'error',
+          'स्वयं करने वाले का नाम अनिवार्य है',
+          `पंक्ति ${i + 1} (${row.karmikName}) में "स्वयं" चुनने के बाद नाम (UPPERCASE में) दर्ज करें।`
         );
         return;
       }
@@ -324,6 +395,7 @@ export default function App() {
         mode: actionMode,
         udiseCode: cleanedUdise,
         schoolName: cleanedSchool,
+        nyayPanchayat: nyayPanchayat.trim(),
         headmasterName: cleanedHmName,
         headmasterMobile: cleanedHmMobile,
         rows: sanitizedRows,
@@ -430,7 +502,7 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-4">
                 <label
                   htmlFor="udise-input"
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
@@ -471,11 +543,11 @@ export default function App() {
                   </button>
                 </div>
                 <p className="text-xs text-slate-500 mt-1.5">
-                  11 अंकों का UDISE कोड भरते ही School_List से विद्यालय का नाम स्वतः आ जाएगा।
+                  11 अंकों का UDISE कोड भरते ही School_List से विद्यालय एवं न्याय पंचायत स्वतः आ जाएगा।
                 </p>
               </div>
 
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-5">
                 <label
                   htmlFor="school-name-display"
                   className="block text-xs font-semibold text-slate-700 mb-1.5"
@@ -506,6 +578,27 @@ export default function App() {
                   <p className="mt-1.5 text-xs font-medium text-rose-700">{lookupError}</p>
                 )}
               </div>
+
+              <div className="lg:col-span-3">
+                <label
+                  htmlFor="nyay-panchayat-display"
+                  className="block text-xs font-semibold text-slate-700 mb-1.5"
+                >
+                  न्याय पंचायत (Auto-Fetched)
+                </label>
+                <input
+                  id="nyay-panchayat-display"
+                  type="text"
+                  readOnly
+                  value={nyayPanchayat}
+                  placeholder="न्याय पंचायत स्वतः प्राप्त होगा"
+                  className={`w-full min-h-[44px] px-3.5 py-2.5 text-base sm:text-sm rounded-xl sm:rounded-lg border font-medium focus:outline-none ${
+                    nyayPanchayat
+                      ? 'bg-emerald-50/50 border-emerald-300 text-slate-900'
+                      : 'bg-slate-50 border-slate-200 text-slate-500'
+                  }`}
+                />
+              </div>
             </div>
           </section>
 
@@ -514,6 +607,7 @@ export default function App() {
             <ExistingDataCard
               udiseCode={savedSnapshot.udiseCode}
               schoolName={savedSnapshot.schoolName}
+              nyayPanchayat={savedSnapshot.nyayPanchayat}
               headmasterName={savedSnapshot.headmasterName}
               headmasterMobile={savedSnapshot.headmasterMobile}
               records={savedSnapshot.records}

@@ -31,7 +31,8 @@ const DATA_HEADERS = [
   "ग्राम",
   "स्व गणना आइडी(SE ID)",
   "स्व गणना दिनांक",
-  "स्व गणना किसके द्वारा की गई"
+  "स्व गणना किसके द्वारा की गई",
+  "न्याय पंचायत"
 ];
 
 /**
@@ -60,7 +61,25 @@ function ensureDataHeaders(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(DATA_HEADERS);
     sheet.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight("bold");
+  } else {
+    const lastHeaderCol = DATA_HEADERS.length;
+    const existingHeader = String(sheet.getRange(1, lastHeaderCol).getDisplayValue() || "").trim();
+    if (!existingHeader) {
+      sheet.getRange(1, lastHeaderCol).setValue(DATA_HEADERS[lastHeaderCol - 1]).setFontWeight("bold");
+    }
   }
+}
+
+function findNyayPanchayatColIndex(headersRow, fallbackIndex) {
+  if (Array.isArray(headersRow)) {
+    for (let c = 0; c < headersRow.length; c++) {
+      const h = String(headersRow[c] || "").trim().toLowerCase();
+      if (h.indexOf("न्याय") !== -1 || h.indexOf("nyay") !== -1 || h.indexOf("panchayat") !== -1) {
+        return c;
+      }
+    }
+  }
+  return fallbackIndex;
 }
 
 /**
@@ -86,12 +105,16 @@ function lookupByUdise(udiseInput) {
 
   // 1. Lookup in School_List
   let schoolName = "";
+  let nyayPanchayat = "";
   let foundInSchoolList = false;
   const schoolValues = schoolSheet.getDataRange().getDisplayValues();
+  const schoolNyayCol = findNyayPanchayatColIndex(schoolValues[0], 2);
+
   for (let i = 1; i < schoolValues.length; i++) {
     const rowUdise = normalizeUdise(schoolValues[i][0]);
     if (rowUdise === targetUdise) {
       schoolName = String(schoolValues[i][1] || "").trim();
+      nyayPanchayat = String(schoolValues[i][schoolNyayCol] || "").trim();
       foundInSchoolList = true;
       break;
     }
@@ -105,12 +128,17 @@ function lookupByUdise(udiseInput) {
 
   if (dataSheet && dataSheet.getLastRow() > 1) {
     const dataValues = dataSheet.getDataRange().getDisplayValues();
+    const dataNyayCol = findNyayPanchayatColIndex(dataValues[0], 16);
+
     for (let i = 1; i < dataValues.length; i++) {
       const row = dataValues[i];
       const rowUdise = normalizeUdise(row[0]);
       if (rowUdise === targetUdise) {
         if (!schoolName && row[1]) {
           schoolName = String(row[1]).trim();
+        }
+        if (!nyayPanchayat && row[dataNyayCol]) {
+          nyayPanchayat = String(row[dataNyayCol]).trim();
         }
         if (!headmasterName && row[2]) {
           headmasterName = String(row[2]).trim();
@@ -142,6 +170,7 @@ function lookupByUdise(udiseInput) {
     udiseCode: targetUdise,
     foundInSchoolList: foundInSchoolList,
     schoolName: schoolName,
+    nyayPanchayat: nyayPanchayat,
     hasExistingData: existingRecords.length > 0,
     headmasterName: headmasterName,
     headmasterMobile: headmasterMobile,
@@ -162,12 +191,14 @@ function getSchoolList() {
     };
   }
   const values = schoolSheet.getDataRange().getDisplayValues();
+  const schoolNyayCol = findNyayPanchayatColIndex(values[0], 2);
   const schools = [];
   for (let i = 1; i < values.length; i++) {
     const udise = normalizeUdise(values[i][0]);
     const name = String(values[i][1] || "").trim();
+    const nyay = String(values[i][schoolNyayCol] || "").trim();
     if (udise && name) {
-      schools.push({ udiseCode: udise, schoolName: name });
+      schools.push({ udiseCode: udise, schoolName: name, nyayPanchayat: nyay });
     }
   }
   return {
@@ -193,6 +224,7 @@ function saveOrUpdateData(payload) {
 
     const targetUdise = normalizeUdise(payload.udiseCode);
     const schoolName = String(payload.schoolName || "").trim();
+    const nyayPanchayat = String(payload.nyayPanchayat || "").trim();
     const headmasterName = String(payload.headmasterName || "").trim();
     const headmasterMobile = String(payload.headmasterMobile || "").trim();
     const rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -253,7 +285,8 @@ function saveOrUpdateData(payload) {
         String(item.village || "").trim(),
         String(item.seId || "").trim(),
         String(item.selfEnumDate || "").trim(),
-        String(item.enumeratedBy || "").trim()
+        String(item.enumeratedBy || "").trim(),
+        nyayPanchayat
       ];
     });
 

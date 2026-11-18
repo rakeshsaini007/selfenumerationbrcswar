@@ -45,6 +45,18 @@ function formatKarmikFieldValue(
   return rawValue;
 }
 
+const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ'] as const;
+
+function parseEnumeratedBy(value: string): { choice: string; selfName: string } {
+  if (value === 'स्वयं') {
+    return { choice: 'स्वयं', selfName: '' };
+  }
+  if (value.startsWith('स्वयं - ')) {
+    return { choice: 'स्वयं', selfName: value.slice('स्वयं - '.length) };
+  }
+  return { choice: value, selfName: '' };
+}
+
 export function KarmikTable({
   rows,
   onChangeRow,
@@ -94,12 +106,6 @@ export function KarmikTable({
         <option value="आंगनवाड़ी" />
       </datalist>
 
-      <datalist id="enumerated-by-suggestions">
-        <option value="स्वयं" />
-        <option value="प्रधानाध्यापक" />
-        <option value="बीएलओ" />
-      </datalist>
-
       {/* Mobile Touch-Friendly Stacked Entry Cards (< md) */}
       <div className="md:hidden divide-y divide-slate-200">
         {rows.map((row, index) => {
@@ -145,12 +151,87 @@ export function KarmikTable({
               {!isCollapsed && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {KARMIK_TABLE_COLUMNS.map((col) => {
+                    if (col.key === 'enumeratedBy') {
+                      const { choice, selfName } = parseEnumeratedBy(row.enumeratedBy);
+                      const isCustomLegacy =
+                        Boolean(choice) &&
+                        !ENUMERATED_BY_OPTIONS.includes(
+                          choice as (typeof ENUMERATED_BY_OPTIONS)[number]
+                        );
+
+                      return (
+                        <div key={col.key} className="space-y-2 sm:col-span-2">
+                          <label
+                            htmlFor={`mobile-${row.id}-${col.key}`}
+                            className="block text-xs font-semibold text-slate-700"
+                          >
+                            {col.label}
+                            {col.required && <span className="text-rose-600 ml-0.5">*</span>}
+                          </label>
+                          <select
+                            id={`mobile-${row.id}-${col.key}`}
+                            value={choice}
+                            required={col.required}
+                            disabled={disabled}
+                            onChange={(e) => {
+                              const nextChoice = e.target.value;
+                              if (nextChoice === 'स्वयं') {
+                                onChangeRow(
+                                  row.id,
+                                  'enumeratedBy',
+                                  selfName ? `स्वयं - ${selfName}` : 'स्वयं'
+                                );
+                              } else {
+                                onChangeRow(row.id, 'enumeratedBy', nextChoice);
+                              }
+                            }}
+                            className="w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                          >
+                            <option value="">-- चुनें --</option>
+                            {ENUMERATED_BY_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                            {isCustomLegacy && <option value={choice}>{choice}</option>}
+                          </select>
+
+                          {choice === 'स्वयं' && (
+                            <div>
+                              <label
+                                htmlFor={`mobile-${row.id}-enumeratedBy-name`}
+                                className="block text-xs font-medium text-slate-600 mb-1"
+                              >
+                                स्वयं करने वाले का नाम (UPPERCASE)
+                                <span className="text-rose-600 ml-0.5">*</span>
+                              </label>
+                              <input
+                                id={`mobile-${row.id}-enumeratedBy-name`}
+                                type="text"
+                                required
+                                disabled={disabled}
+                                value={selfName}
+                                placeholder="अंग्रेज़ी बड़े अक्षरों में नाम लिखें"
+                                onChange={(e) => {
+                                  const cleanedName = e.target.value
+                                    .replace(/[^A-Za-z.\s]/g, '')
+                                    .toUpperCase();
+                                  onChangeRow(
+                                    row.id,
+                                    'enumeratedBy',
+                                    cleanedName ? `स्वयं - ${cleanedName}` : 'स्वयं'
+                                  );
+                                }}
+                                className="w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     const listId =
-                      col.key === 'designation'
-                        ? 'designation-suggestions'
-                        : col.key === 'enumeratedBy'
-                          ? 'enumerated-by-suggestions'
-                          : undefined;
+                      col.key === 'designation' ? 'designation-suggestions' : undefined;
 
                     const isInvalidSeId =
                       col.key === 'seId' &&
@@ -164,6 +245,7 @@ export function KarmikTable({
                           className="block text-xs font-semibold text-slate-700 mb-1.5"
                         >
                           {col.label}
+                          {col.required && <span className="text-rose-600 ml-0.5">*</span>}
                         </label>
                         <input
                           id={`mobile-${row.id}-${col.key}`}
@@ -172,6 +254,7 @@ export function KarmikTable({
                           list={listId}
                           value={row[col.key]}
                           maxLength={col.maxLength}
+                          required={col.required}
                           disabled={disabled}
                           placeholder={col.placeholder}
                           onChange={(e) => {
@@ -217,6 +300,7 @@ export function KarmikTable({
                   className={`py-3 px-3 border-r border-slate-200 whitespace-nowrap ${col.minWidth}`}
                 >
                   {col.label}
+                  {col.required && <span className="text-rose-600 ml-0.5">*</span>}
                 </th>
               ))}
               <th className="py-3 px-3 text-center whitespace-nowrap w-20">हटाएं</th>
@@ -231,12 +315,73 @@ export function KarmikTable({
                 </td>
 
                 {KARMIK_TABLE_COLUMNS.map((col) => {
+                  if (col.key === 'enumeratedBy') {
+                    const { choice, selfName } = parseEnumeratedBy(row.enumeratedBy);
+                    const isCustomLegacy =
+                      Boolean(choice) &&
+                      !ENUMERATED_BY_OPTIONS.includes(
+                        choice as (typeof ENUMERATED_BY_OPTIONS)[number]
+                      );
+
+                    return (
+                      <td key={col.key} className="p-1.5 border-r border-slate-200 align-middle">
+                        <div className="space-y-1.5">
+                          <select
+                            value={choice}
+                            required={col.required}
+                            disabled={disabled}
+                            aria-label={`${col.label} - पंक्ति ${index + 1}`}
+                            onChange={(e) => {
+                              const nextChoice = e.target.value;
+                              if (nextChoice === 'स्वयं') {
+                                onChangeRow(
+                                  row.id,
+                                  'enumeratedBy',
+                                  selfName ? `स्वयं - ${selfName}` : 'स्वयं'
+                                );
+                              } else {
+                                onChangeRow(row.id, 'enumeratedBy', nextChoice);
+                              }
+                            }}
+                            className="w-full px-2.5 py-2 text-sm bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                          >
+                            <option value="">-- चुनें --</option>
+                            {ENUMERATED_BY_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                            {isCustomLegacy && <option value={choice}>{choice}</option>}
+                          </select>
+
+                          {choice === 'स्वयं' && (
+                            <input
+                              type="text"
+                              required
+                              disabled={disabled}
+                              value={selfName}
+                              placeholder="नाम लिखें (UPPERCASE)"
+                              aria-label={`स्वयं करने वाले का नाम - पंक्ति ${index + 1}`}
+                              onChange={(e) => {
+                                const cleanedName = e.target.value
+                                  .replace(/[^A-Za-z.\s]/g, '')
+                                  .toUpperCase();
+                                onChangeRow(
+                                  row.id,
+                                  'enumeratedBy',
+                                  cleanedName ? `स्वयं - ${cleanedName}` : 'स्वयं'
+                                );
+                              }}
+                              className="w-full px-2.5 py-2 text-sm bg-white border border-blue-300 rounded-md text-slate-900 placeholder:text-slate-400 uppercase placeholder:normal-case focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:bg-slate-100"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    );
+                  }
+
                   const listId =
-                    col.key === 'designation'
-                      ? 'designation-suggestions'
-                      : col.key === 'enumeratedBy'
-                        ? 'enumerated-by-suggestions'
-                        : undefined;
+                    col.key === 'designation' ? 'designation-suggestions' : undefined;
 
                   const isInvalidSeId =
                     col.key === 'seId' &&
@@ -250,6 +395,7 @@ export function KarmikTable({
                         list={listId}
                         value={row[col.key]}
                         maxLength={col.maxLength}
+                        required={col.required}
                         disabled={disabled}
                         placeholder={col.placeholder}
                         title={

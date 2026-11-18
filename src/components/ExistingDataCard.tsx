@@ -5,6 +5,7 @@ import type { ExistingKarmikRecord } from '../types/school';
 interface ExistingDataCardProps {
   udiseCode: string;
   schoolName: string;
+  nyayPanchayat?: string;
   headmasterName: string;
   headmasterMobile: string;
   records: ExistingKarmikRecord[];
@@ -13,6 +14,7 @@ interface ExistingDataCardProps {
 export function ExistingDataCard({
   udiseCode,
   schoolName,
+  nyayPanchayat,
   headmasterName,
   headmasterMobile,
   records,
@@ -41,6 +43,12 @@ export function ExistingDataCard({
               </span>
               <span aria-hidden="true">·</span>
               <span className="font-medium text-slate-800">{schoolName}</span>
+              {nyayPanchayat && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>न्याय पंचायत: <span className="font-medium text-slate-800">{nyayPanchayat}</span></span>
+                </>
+              )}
               <span aria-hidden="true">·</span>
               <span className="font-mono-code font-medium text-amber-900">
                 कुल {records.length} कार्मिक दर्ज
