@@ -91,6 +91,7 @@ export function KarmikTable({
         <option value="अनुदेशक" />
         <option value="परिचारक" />
         <option value="सफाईकर्मी" />
+        <option value="आंगनवाड़ी" />
       </datalist>
 
       <datalist id="enumerated-by-suggestions">
