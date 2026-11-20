@@ -57,6 +57,7 @@ const DESIGNATION_OPTIONS = [
   'परिचारक',
   'सफाईकर्मी',
   'आंगनवाड़ी',
+  'रसोईया',
 ] as const;
 
 const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ', 'अन्य'] as const;
