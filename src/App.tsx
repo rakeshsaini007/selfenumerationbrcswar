@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  FileSpreadsheet,
   Loader2,
   RefreshCw,
   RotateCcw,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { AlertBannerModal } from './components/AlertBannerModal';
 import { ExistingDataCard } from './components/ExistingDataCard';
+import { GoogleSheetModal } from './components/GoogleSheetModal';
 import { KarmikTable } from './components/KarmikTable';
 import { SetupGuideModal } from './components/SetupGuideModal';
 import {
@@ -26,6 +28,7 @@ import {
 export default function App() {
   const [hasEndpoint, setHasEndpoint] = useState<boolean>(() => Boolean(getActiveAppsScriptUrl()));
   const [setupOpen, setSetupOpen] = useState(false);
+  const [sheetModalOpen, setSheetModalOpen] = useState(false);
 
   // School lookup state
   const [udiseInput, setUdiseInput] = useState('');
@@ -450,13 +453,22 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
           <a
             href="#top"
             className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 truncate"
           >
             UDISE स्व गणना पोर्टल
           </a>
+
+          <button
+            type="button"
+            onClick={() => setSheetModalOpen(true)}
+            className="inline-flex items-center gap-2 min-h-[40px] sm:min-h-[42px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-lg hover:bg-emerald-100 active:scale-[0.99] transition-all whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
+            <span>Google Sheet देखें</span>
+          </button>
         </div>
       </header>
 
@@ -776,6 +788,12 @@ export default function App() {
         open={setupOpen}
         onClose={() => setSetupOpen(false)}
         onUrlUpdated={() => setHasEndpoint(Boolean(getActiveAppsScriptUrl()))}
+      />
+
+      {/* Live Google Sheet Viewer Modal */}
+      <GoogleSheetModal
+        open={sheetModalOpen}
+        onClose={() => setSheetModalOpen(false)}
       />
     </div>
   );

@@ -231,6 +231,46 @@ function getSchoolList() {
 }
 
 /**
+ * Returns full display values and spreadsheet URL for "Data" or "School_List"
+ */
+function getSheetData(requestedSheet) {
+  const targetName = requestedSheet === SHEET_SCHOOL_LIST ? SHEET_SCHOOL_LIST : SHEET_DATA;
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(targetName);
+
+  if (!sheet) {
+    return {
+      success: false,
+      error: 'शीट "' + targetName + '" नहीं मिली।'
+    };
+  }
+
+  if (targetName === SHEET_DATA && sheet.getLastRow() === 0) {
+    return {
+      success: true,
+      sheetName: targetName,
+      spreadsheetName: ss.getName(),
+      spreadsheetUrl: ss.getUrl(),
+      headers: DATA_HEADERS,
+      rows: []
+    };
+  }
+
+  const values = sheet.getDataRange().getDisplayValues();
+  const headers = values.length > 0 ? values[0] : (targetName === SHEET_DATA ? DATA_HEADERS : []);
+  const rows = values.length > 1 ? values.slice(1) : [];
+
+  return {
+    success: true,
+    sheetName: targetName,
+    spreadsheetName: ss.getName(),
+    spreadsheetUrl: ss.getUrl(),
+    headers: headers,
+    rows: rows
+  };
+}
+
+/**
  * Saves new records or updates existing records for a UDISE CODE in "Data"
  */
 function saveOrUpdateData(payload) {
@@ -350,6 +390,9 @@ function doGet(e) {
 
     if (action === "schools") {
       return jsonResponse(getSchoolList());
+    }
+    if (action === "sheetData") {
+      return jsonResponse(getSheetData(params.sheet || SHEET_DATA));
     }
     if (action === "lookup") {
       return jsonResponse(lookupByUdise(params.udise || ""));

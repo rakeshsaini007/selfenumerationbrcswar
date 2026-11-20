@@ -59,6 +59,16 @@ export interface SaveUpdateResponse {
   error?: string;
 }
 
+export interface GoogleSheetViewResponse {
+  success: boolean;
+  sheetName: string;
+  spreadsheetName?: string;
+  spreadsheetUrl?: string;
+  headers: string[];
+  rows: string[][];
+  error?: string;
+}
+
 export interface AlertDialogState {
   open: boolean;
   type: 'success' | 'error' | 'info';

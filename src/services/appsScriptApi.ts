@@ -1,5 +1,6 @@
 import { GOOGLE_APPS_SCRIPT_URL } from '../config/appsScriptConfig';
 import type {
+  GoogleSheetViewResponse,
   SaveUpdatePayload,
   SaveUpdateResponse,
   SchoolDirectoryItem,
@@ -126,4 +127,59 @@ export async function saveOrUpdateSchoolData(
   }
 
   return data;
+}
+
+export async function fetchGoogleSheetData(
+  sheetName: 'Data' | 'School_List' = 'Data'
+): Promise<GoogleSheetViewResponse> {
+  const endpoint = getActiveAppsScriptUrl();
+  if (!endpoint) {
+    throw new Error(
+      'Google Apps Script URL कॉन्फ़िगर नहीं है। कृपया src/config/appsScriptConfig.ts में अपना Deploy URL दर्ज करें।'
+    );
+  }
+
+  const url = new URL(endpoint);
+  url.searchParams.set('action', 'sheetData');
+  url.searchParams.set('sheet', sheetName);
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    redirect: 'follow',
+  });
+
+  if (!response.ok) {
+    throw new Error(`सर्वर त्रुटि (${response.status}): Google Sheet डेटा प्राप्त नहीं हो सका।`);
+  }
+
+  const data = (await response.json()) as Partial<GoogleSheetViewResponse>;
+  if (data.success === false) {
+    throw new Error(data.error || 'Google Sheet डेटा प्राप्त करने में त्रुटि हुई।');
+  }
+
+  if (Array.isArray(data.rows) && Array.isArray(data.headers)) {
+    return {
+      success: true,
+      sheetName: data.sheetName || sheetName,
+      spreadsheetName: data.spreadsheetName,
+      spreadsheetUrl: data.spreadsheetUrl,
+      headers: data.headers,
+      rows: data.rows,
+    };
+  }
+
+  // Fallback for School_List if an older Apps Script deployment without action=sheetData is active
+  if (sheetName === 'School_List') {
+    const schools = await fetchSchoolDirectory();
+    return {
+      success: true,
+      sheetName: 'School_List',
+      headers: ['UDISE CODE', 'विद्यालय का नाम', 'न्याय पंचायत'],
+      rows: schools.map((s) => [s.udiseCode, s.schoolName, s.nyayPanchayat || '']),
+    };
+  }
+
+  throw new Error(
+    'लाइव Google Sheet देखने के लिए कृपया अपने Google Apps Script में नवीनतम code.js पेस्ट करके नया वर्जन Deploy करें।'
+  );
 }
