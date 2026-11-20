@@ -5,7 +5,7 @@ import { verifyAdminPasscode } from '../services/appsScriptApi';
 interface AdminPasscodeModalProps {
   open: boolean;
   onClose: () => void;
-  onVerified: (adminKey: string) => void;
+  onVerified: (adminKey: string, spreadsheetUrl?: string) => void;
 }
 
 export function AdminPasscodeModal({
@@ -52,8 +52,8 @@ export function AdminPasscodeModal({
     setError('');
 
     try {
-      await verifyAdminPasscode(trimmed);
-      onVerified(trimmed);
+      const result = await verifyAdminPasscode(trimmed);
+      onVerified(trimmed, result.spreadsheetUrl);
     } catch (err) {
       setError(
         err instanceof Error

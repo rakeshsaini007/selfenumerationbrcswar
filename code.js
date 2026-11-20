@@ -263,9 +263,11 @@ function verifyAdminAccess(adminKey) {
       error: "गलत Admin Passcode। यह सुविधा केवल एडमिन (App Developer) के लिए है।"
     };
   }
+  const ss = getSpreadsheet();
   return {
     success: true,
-    authorized: true
+    authorized: true,
+    spreadsheetUrl: ss.getUrl()
   };
 }
 
@@ -292,12 +294,15 @@ function getSheetData(requestedSheet, adminKey) {
     };
   }
 
+  const sheetUrl = ss.getUrl() + "#gid=" + sheet.getSheetId();
+
   if (targetName === SHEET_DATA && sheet.getLastRow() === 0) {
     return {
       success: true,
       sheetName: targetName,
       spreadsheetName: ss.getName(),
       spreadsheetUrl: ss.getUrl(),
+      sheetUrl: sheetUrl,
       headers: DATA_HEADERS,
       rows: []
     };
@@ -312,6 +317,7 @@ function getSheetData(requestedSheet, adminKey) {
     sheetName: targetName,
     spreadsheetName: ss.getName(),
     spreadsheetUrl: ss.getUrl(),
+    sheetUrl: sheetUrl,
     headers: headers,
     rows: rows
   };

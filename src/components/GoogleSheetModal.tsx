@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ExternalLink,
   FileSpreadsheet,
   Loader2,
@@ -18,9 +22,11 @@ interface GoogleSheetModalProps {
   onClose: () => void;
   onUnauthorized: () => void;
   onLockAdmin: () => void;
+  onSheetUrlResolved?: (url: string) => void;
 }
 
 type SheetTab = 'Data' | 'School_List';
+const PAGE_SIZE = 25;
 
 export function GoogleSheetModal({
   open,
@@ -28,12 +34,16 @@ export function GoogleSheetModal({
   onClose,
   onUnauthorized,
   onLockAdmin,
+  onSheetUrlResolved,
 }: GoogleSheetModalProps) {
   const [activeSheet, setActiveSheet] = useState<SheetTab>('Data');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [sheetData, setSheetData] = useState<GoogleSheetViewResponse | null>(null);
+
+  const scrollBodyRef = useRef<HTMLDivElement | null>(null);
 
   const loadSheet = useCallback(
     async (tab: SheetTab) => {
@@ -46,6 +56,11 @@ export function GoogleSheetModal({
       try {
         const data = await fetchGoogleSheetData(tab, adminKey);
         setSheetData(data);
+        setCurrentPage(1);
+        const resolved = data.spreadsheetUrl || data.sheetUrl;
+        if (resolved && onSheetUrlResolved) {
+          onSheetUrlResolved(resolved);
+        }
       } catch (err) {
         setSheetData(null);
         if (err instanceof AdminUnauthorizedError) {
@@ -59,7 +74,7 @@ export function GoogleSheetModal({
         setLoading(false);
       }
     },
-    [adminKey, onUnauthorized]
+    [adminKey, onUnauthorized, onSheetUrlResolved]
   );
 
   useEffect(() => {
@@ -87,10 +102,26 @@ export function GoogleSheetModal({
     );
   }, [sheetData, searchQuery]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedRows = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredRows.slice(start, start + PAGE_SIZE);
+  }, [filteredRows, safePage]);
+
+  const scrollHorizontally = (delta: number) => {
+    if (!scrollBodyRef.current) return;
+    scrollBodyRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
   if (!open) return null;
 
   const headers = sheetData?.headers || [];
   const totalRows = sheetData?.rows?.length || 0;
+  const navigateSheetUrl = sheetData?.sheetUrl || sheetData?.spreadsheetUrl || '';
+  const startRowNumber = filteredRows.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endRowNumber = Math.min(safePage * PAGE_SIZE, filteredRows.length);
 
   return (
     <div
@@ -125,16 +156,16 @@ export function GoogleSheetModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {sheetData?.spreadsheetUrl && (
+            {navigateSheetUrl && (
               <a
-                href={sheetData.spreadsheetUrl}
+                href={navigateSheetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 min-h-[40px] px-3 sm:px-3.5 py-2 text-xs font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-800 transition-colors whitespace-nowrap"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Google Sheet खोलें</span>
-                <span className="sm:hidden">खोलें</span>
+                <span className="hidden sm:inline">Google Sheet पर जाएं</span>
+                <span className="sm:hidden">Sheet पर जाएं</span>
               </a>
             )}
             <button
@@ -157,13 +188,14 @@ export function GoogleSheetModal({
           </div>
         </div>
 
-        {/* Toolbar: Sheet Switcher, Search & Refresh */}
+        {/* Toolbar: Sheet Switcher, Search, Column Scroll & Refresh */}
         <div className="px-4 py-3 sm:px-6 bg-slate-50/80 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => {
                 setSearchQuery('');
+                setCurrentPage(1);
                 setActiveSheet('Data');
               }}
               className={`min-h-[40px] px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
@@ -178,6 +210,7 @@ export function GoogleSheetModal({
               type="button"
               onClick={() => {
                 setSearchQuery('');
+                setCurrentPage(1);
                 setActiveSheet('School_List');
               }}
               className={`min-h-[40px] px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
@@ -204,10 +237,34 @@ export function GoogleSheetModal({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="UDISE, विद्यालय, कार्मिक या न्याय पंचायत खोजें..."
                 className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-base sm:text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
               />
+            </div>
+
+            <div className="hidden md:flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => scrollHorizontally(-320)}
+                title="कॉलम बाएँ खिसकाएं"
+                aria-label="कॉलम बाएँ खिसकाएं"
+                className="inline-flex items-center justify-center min-h-[40px] min-w-[36px] px-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollHorizontally(320)}
+                title="कॉलम दाएँ खिसकाएं"
+                aria-label="कॉलम दाएँ खिसकाएं"
+                className="inline-flex items-center justify-center min-h-[40px] min-w-[36px] px-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
 
             <button
@@ -223,7 +280,7 @@ export function GoogleSheetModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto bg-white">
+        <div ref={scrollBodyRef} className="flex-1 overflow-auto bg-white">
           {loading ? (
             <div className="h-full min-h-[260px] flex flex-col items-center justify-center gap-3 p-6 text-slate-600">
               <Loader2 className="w-7 h-7 animate-spin text-emerald-700" />
@@ -259,35 +316,38 @@ export function GoogleSheetModal({
             <>
               {/* Mobile Card View (< md) */}
               <div className="md:hidden divide-y divide-slate-200">
-                {filteredRows.map((row, rIdx) => (
-                  <div key={rIdx} className="p-4 space-y-2.5 text-xs">
-                    <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100">
-                      <span className="font-mono-code font-semibold text-slate-800">
-                        #{rIdx + 1} · {row[0] || '—'}
-                      </span>
-                      {row[1] && (
-                        <span className="font-medium text-slate-700 truncate max-w-[65%]">
-                          {row[1]}
+                {paginatedRows.map((row, idx) => {
+                  const rowNum = (safePage - 1) * PAGE_SIZE + idx + 1;
+                  return (
+                    <div key={rowNum} className="p-4 space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-slate-100">
+                        <span className="font-mono-code font-semibold text-slate-800">
+                          #{rowNum} · {row[0] || '—'}
                         </span>
-                      )}
+                        {row[1] && (
+                          <span className="font-medium text-slate-700 truncate max-w-[65%]">
+                            {row[1]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                        {headers.map((header, cIdx) => {
+                          const val = row[cIdx] || '—';
+                          return (
+                            <div key={`${rowNum}-${cIdx}`} className="min-w-0">
+                              <span className="block text-[11px] font-medium text-slate-500">
+                                {header || `कॉलम ${cIdx + 1}`}
+                              </span>
+                              <span className="block text-xs text-slate-900 break-words font-medium">
+                                {val}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                      {headers.map((header, cIdx) => {
-                        const val = row[cIdx] || '—';
-                        return (
-                          <div key={`${rIdx}-${cIdx}`} className="min-w-0">
-                            <span className="block text-[11px] font-medium text-slate-500">
-                              {header || `कॉलम ${cIdx + 1}`}
-                            </span>
-                            <span className="block text-xs text-slate-900 break-words font-medium">
-                              {val}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Desktop Spreadsheet Table (>= md) */}
@@ -309,40 +369,102 @@ export function GoogleSheetModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {filteredRows.map((row, rIdx) => (
-                      <tr key={rIdx} className="hover:bg-emerald-50/40 transition-colors">
-                        <td className="py-2 px-3 border-r border-slate-200 text-center font-mono-code text-slate-500 sticky left-0 bg-white z-10">
-                          {rIdx + 1}
-                        </td>
-                        {headers.map((_, cIdx) => {
-                          const cell = row[cIdx] || '';
-                          const isMonoCol =
-                            cIdx === 0 ||
-                            cIdx === 3 ||
-                            cIdx === 8 ||
-                            cIdx === 11 ||
-                            cIdx === 13 ||
-                            cIdx === 14 ||
-                            cIdx === 17;
-                          return (
-                            <td
-                              key={cIdx}
-                              className={`py-2 px-3 border-r border-slate-200 whitespace-nowrap text-slate-800 ${
-                                isMonoCol ? 'font-mono-code' : ''
-                              }`}
-                            >
-                              {cell || <span className="text-slate-300">—</span>}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {paginatedRows.map((row, idx) => {
+                      const rowNum = (safePage - 1) * PAGE_SIZE + idx + 1;
+                      return (
+                        <tr key={rowNum} className="hover:bg-emerald-50/40 transition-colors">
+                          <td className="py-2 px-3 border-r border-slate-200 text-center font-mono-code text-slate-500 sticky left-0 bg-white z-10">
+                            {rowNum}
+                          </td>
+                          {headers.map((_, cIdx) => {
+                            const cell = row[cIdx] || '';
+                            const isMonoCol =
+                              cIdx === 0 ||
+                              cIdx === 3 ||
+                              cIdx === 8 ||
+                              cIdx === 11 ||
+                              cIdx === 13 ||
+                              cIdx === 14 ||
+                              cIdx === 17;
+                            return (
+                              <td
+                                key={cIdx}
+                                className={`py-2 px-3 border-r border-slate-200 whitespace-nowrap text-slate-800 ${
+                                  isMonoCol ? 'font-mono-code' : ''
+                                }`}
+                              >
+                                {cell || <span className="text-slate-300">—</span>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </>
           )}
         </div>
+
+        {/* Footer Row Navigation Bar */}
+        {!loading && !error && filteredRows.length > 0 && (
+          <div className="px-4 py-2.5 sm:px-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <p className="text-xs font-mono-code text-slate-600">
+              पंक्ति {startRowNumber}–{endRowNumber} (कुल {filteredRows.length})
+            </p>
+
+            <div className="flex items-center justify-between sm:justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage <= 1}
+                aria-label="पहला पेज"
+                title="पहला पेज"
+                className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] px-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                aria-label="पिछला पेज"
+                title="पिछला पेज"
+                className="inline-flex items-center gap-1 min-h-[38px] px-2.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">पिछला</span>
+              </button>
+
+              <span className="px-2.5 text-xs font-mono-code font-medium text-slate-800 whitespace-nowrap">
+                पेज {safePage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                aria-label="अगला पेज"
+                title="अगला पेज"
+                className="inline-flex items-center gap-1 min-h-[38px] px-2.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <span className="hidden sm:inline">अगला</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage >= totalPages}
+                aria-label="अंतिम पेज"
+                title="अंतिम पेज"
+                className="inline-flex items-center justify-center min-h-[38px] min-w-[38px] px-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

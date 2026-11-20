@@ -64,6 +64,7 @@ export interface GoogleSheetViewResponse {
   sheetName: string;
   spreadsheetName?: string;
   spreadsheetUrl?: string;
+  sheetUrl?: string;
   headers: string[];
   rows: string[][];
   error?: string;

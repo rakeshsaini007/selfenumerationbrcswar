@@ -136,7 +136,9 @@ export class AdminUnauthorizedError extends Error {
   }
 }
 
-export async function verifyAdminPasscode(adminKey: string): Promise<boolean> {
+export async function verifyAdminPasscode(
+  adminKey: string
+): Promise<{ authorized: boolean; spreadsheetUrl?: string }> {
   const endpoint = getActiveAppsScriptUrl();
   if (!endpoint) {
     throw new Error(
@@ -164,6 +166,7 @@ export async function verifyAdminPasscode(adminKey: string): Promise<boolean> {
     success?: boolean;
     authorized?: boolean;
     unauthorized?: boolean;
+    spreadsheetUrl?: string;
     error?: string;
   };
 
@@ -180,7 +183,10 @@ export async function verifyAdminPasscode(adminKey: string): Promise<boolean> {
     );
   }
 
-  return true;
+  return {
+    authorized: true,
+    spreadsheetUrl: data.spreadsheetUrl,
+  };
 }
 
 export async function fetchGoogleSheetData(
@@ -231,6 +237,7 @@ export async function fetchGoogleSheetData(
       sheetName: data.sheetName || sheetName,
       spreadsheetName: data.spreadsheetName,
       spreadsheetUrl: data.spreadsheetUrl,
+      sheetUrl: data.sheetUrl,
       headers: data.headers,
       rows: data.rows,
     };

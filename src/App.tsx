@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  ExternalLink,
   Loader2,
   Lock,
   RefreshCw,
@@ -28,6 +29,7 @@ import {
 } from './types/school';
 
 const ADMIN_SESSION_KEY = 'udise_portal_admin_key';
+const ADMIN_SHEET_URL_KEY = 'udise_portal_admin_sheet_url';
 
 export default function App() {
   const [hasEndpoint, setHasEndpoint] = useState<boolean>(() => Boolean(getActiveAppsScriptUrl()));
@@ -37,6 +39,13 @@ export default function App() {
   const [adminKey, setAdminKey] = useState<string>(() => {
     try {
       return window.sessionStorage.getItem(ADMIN_SESSION_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+  const [adminSheetUrl, setAdminSheetUrl] = useState<string>(() => {
+    try {
+      return window.sessionStorage.getItem(ADMIN_SHEET_URL_KEY) || '';
     } catch {
       return '';
     }
@@ -473,25 +482,40 @@ export default function App() {
             UDISE स्व गणना पोर्टल
           </a>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (adminKey) {
-                setSheetModalOpen(true);
-              } else {
-                setAdminPromptOpen(true);
-              }
-            }}
-            title="केवल एडमिन (App Developer) के लिए"
-            className="inline-flex items-center gap-2 min-h-[40px] sm:min-h-[42px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-lg hover:bg-emerald-100 active:scale-[0.99] transition-all whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            {adminKey ? (
-              <Unlock className="w-4 h-4 shrink-0" />
-            ) : (
-              <Lock className="w-4 h-4 shrink-0" />
+          <div className="flex items-center gap-2 shrink-0">
+            {adminKey && adminSheetUrl && (
+              <a
+                href={adminSheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Google Sheet पर जाएं (केवल एडमिन)"
+                aria-label="Google Sheet पर जाएं"
+                className="inline-flex items-center gap-1.5 min-h-[40px] sm:min-h-[42px] px-2.5 sm:px-3.5 py-2 text-xs sm:text-sm font-medium text-white bg-emerald-700 rounded-xl sm:rounded-lg hover:bg-emerald-800 active:scale-[0.99] transition-all whitespace-nowrap shrink-0"
+              >
+                <ExternalLink className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Sheet पर जाएं</span>
+              </a>
             )}
-            <span>Google Sheet (Admin)</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (adminKey) {
+                  setSheetModalOpen(true);
+                } else {
+                  setAdminPromptOpen(true);
+                }
+              }}
+              title="केवल एडमिन (App Developer) के लिए"
+              className="inline-flex items-center gap-2 min-h-[40px] sm:min-h-[42px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-lg hover:bg-emerald-100 active:scale-[0.99] transition-all whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              {adminKey ? (
+                <Unlock className="w-4 h-4 shrink-0" />
+              ) : (
+                <Lock className="w-4 h-4 shrink-0" />
+              )}
+              <span>Google Sheet (Admin)</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -817,10 +841,15 @@ export default function App() {
       <AdminPasscodeModal
         open={adminPromptOpen}
         onClose={() => setAdminPromptOpen(false)}
-        onVerified={(verifiedKey) => {
+        onVerified={(verifiedKey, spreadsheetUrl) => {
           setAdminKey(verifiedKey);
+          const resolvedUrl = spreadsheetUrl || '';
+          setAdminSheetUrl(resolvedUrl);
           try {
             window.sessionStorage.setItem(ADMIN_SESSION_KEY, verifiedKey);
+            if (resolvedUrl) {
+              window.sessionStorage.setItem(ADMIN_SHEET_URL_KEY, resolvedUrl);
+            }
           } catch {
             // ignore storage errors
           }
@@ -834,10 +863,22 @@ export default function App() {
         open={sheetModalOpen}
         adminKey={adminKey}
         onClose={() => setSheetModalOpen(false)}
+        onSheetUrlResolved={(resolvedUrl) => {
+          if (resolvedUrl && resolvedUrl !== adminSheetUrl) {
+            setAdminSheetUrl(resolvedUrl);
+            try {
+              window.sessionStorage.setItem(ADMIN_SHEET_URL_KEY, resolvedUrl);
+            } catch {
+              // ignore storage errors
+            }
+          }
+        }}
         onUnauthorized={() => {
           setAdminKey('');
+          setAdminSheetUrl('');
           try {
             window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+            window.sessionStorage.removeItem(ADMIN_SHEET_URL_KEY);
           } catch {
             // ignore storage errors
           }
@@ -846,8 +887,10 @@ export default function App() {
         }}
         onLockAdmin={() => {
           setAdminKey('');
+          setAdminSheetUrl('');
           try {
             window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+            window.sessionStorage.removeItem(ADMIN_SHEET_URL_KEY);
           } catch {
             // ignore storage errors
           }
