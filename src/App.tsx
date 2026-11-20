@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
-  FileSpreadsheet,
   Loader2,
+  Lock,
   RefreshCw,
   RotateCcw,
   Save,
   Search,
+  Unlock,
 } from 'lucide-react';
+import { AdminPasscodeModal } from './components/AdminPasscodeModal';
 import { AlertBannerModal } from './components/AlertBannerModal';
 import { ExistingDataCard } from './components/ExistingDataCard';
 import { GoogleSheetModal } from './components/GoogleSheetModal';
@@ -25,10 +27,20 @@ import {
   type KarmikRow,
 } from './types/school';
 
+const ADMIN_SESSION_KEY = 'udise_portal_admin_key';
+
 export default function App() {
   const [hasEndpoint, setHasEndpoint] = useState<boolean>(() => Boolean(getActiveAppsScriptUrl()));
   const [setupOpen, setSetupOpen] = useState(false);
   const [sheetModalOpen, setSheetModalOpen] = useState(false);
+  const [adminPromptOpen, setAdminPromptOpen] = useState(false);
+  const [adminKey, setAdminKey] = useState<string>(() => {
+    try {
+      return window.sessionStorage.getItem(ADMIN_SESSION_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
 
   // School lookup state
   const [udiseInput, setUdiseInput] = useState('');
@@ -463,11 +475,22 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setSheetModalOpen(true)}
+            onClick={() => {
+              if (adminKey) {
+                setSheetModalOpen(true);
+              } else {
+                setAdminPromptOpen(true);
+              }
+            }}
+            title="केवल एडमिन (App Developer) के लिए"
             className="inline-flex items-center gap-2 min-h-[40px] sm:min-h-[42px] px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-lg hover:bg-emerald-100 active:scale-[0.99] transition-all whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <FileSpreadsheet className="w-4 h-4 shrink-0" />
-            <span>Google Sheet देखें</span>
+            {adminKey ? (
+              <Unlock className="w-4 h-4 shrink-0" />
+            ) : (
+              <Lock className="w-4 h-4 shrink-0" />
+            )}
+            <span>Google Sheet (Admin)</span>
           </button>
         </div>
       </header>
@@ -790,10 +813,46 @@ export default function App() {
         onUrlUpdated={() => setHasEndpoint(Boolean(getActiveAppsScriptUrl()))}
       />
 
-      {/* Live Google Sheet Viewer Modal */}
+      {/* Admin / Developer Verification Modal */}
+      <AdminPasscodeModal
+        open={adminPromptOpen}
+        onClose={() => setAdminPromptOpen(false)}
+        onVerified={(verifiedKey) => {
+          setAdminKey(verifiedKey);
+          try {
+            window.sessionStorage.setItem(ADMIN_SESSION_KEY, verifiedKey);
+          } catch {
+            // ignore storage errors
+          }
+          setAdminPromptOpen(false);
+          setSheetModalOpen(true);
+        }}
+      />
+
+      {/* Live Google Sheet Viewer Modal (Admin Only) */}
       <GoogleSheetModal
         open={sheetModalOpen}
+        adminKey={adminKey}
         onClose={() => setSheetModalOpen(false)}
+        onUnauthorized={() => {
+          setAdminKey('');
+          try {
+            window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          } catch {
+            // ignore storage errors
+          }
+          setSheetModalOpen(false);
+          setAdminPromptOpen(true);
+        }}
+        onLockAdmin={() => {
+          setAdminKey('');
+          try {
+            window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          } catch {
+            // ignore storage errors
+          }
+          setSheetModalOpen(false);
+        }}
       />
     </div>
   );

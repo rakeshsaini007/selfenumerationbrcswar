@@ -129,8 +129,63 @@ export async function saveOrUpdateSchoolData(
   return data;
 }
 
+export class AdminUnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AdminUnauthorizedError';
+  }
+}
+
+export async function verifyAdminPasscode(adminKey: string): Promise<boolean> {
+  const endpoint = getActiveAppsScriptUrl();
+  if (!endpoint) {
+    throw new Error(
+      'Google Apps Script URL कॉन्फ़िगर नहीं है। कृपया src/config/appsScriptConfig.ts में अपना Deploy URL दर्ज करें।'
+    );
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+      action: 'verifyAdmin',
+      adminKey: adminKey.trim(),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`सर्वर त्रुटि (${response.status}): एडमिन सत्यापन नहीं हो सका।`);
+  }
+
+  const data = (await response.json()) as {
+    success?: boolean;
+    authorized?: boolean;
+    unauthorized?: boolean;
+    error?: string;
+  };
+
+  if (data.unauthorized) {
+    throw new AdminUnauthorizedError(
+      data.error || 'गलत Admin Passcode। यह सुविधा केवल एडमिन (App Developer) के लिए है।'
+    );
+  }
+
+  if (data.authorized !== true) {
+    throw new Error(
+      data.error ||
+        'एडमिन सत्यापन सक्रिय करने के लिए कृपया Google Apps Script में नवीनतम code.js पेस्ट करके नया वर्जन Deploy करें।'
+    );
+  }
+
+  return true;
+}
+
 export async function fetchGoogleSheetData(
-  sheetName: 'Data' | 'School_List' = 'Data'
+  sheetName: 'Data' | 'School_List' = 'Data',
+  adminKey: string
 ): Promise<GoogleSheetViewResponse> {
   const endpoint = getActiveAppsScriptUrl();
   if (!endpoint) {
@@ -139,20 +194,33 @@ export async function fetchGoogleSheetData(
     );
   }
 
-  const url = new URL(endpoint);
-  url.searchParams.set('action', 'sheetData');
-  url.searchParams.set('sheet', sheetName);
-
-  const response = await fetch(url.toString(), {
-    method: 'GET',
+  const response = await fetch(endpoint, {
+    method: 'POST',
     redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+      action: 'sheetData',
+      sheet: sheetName,
+      adminKey: adminKey.trim(),
+    }),
   });
 
   if (!response.ok) {
     throw new Error(`सर्वर त्रुटि (${response.status}): Google Sheet डेटा प्राप्त नहीं हो सका।`);
   }
 
-  const data = (await response.json()) as Partial<GoogleSheetViewResponse>;
+  const data = (await response.json()) as Partial<GoogleSheetViewResponse> & {
+    unauthorized?: boolean;
+  };
+
+  if (data.unauthorized) {
+    throw new AdminUnauthorizedError(
+      data.error || 'अनधिकृत पहुँच: Google Sheet केवल एडमिन (App Developer) के लिए है।'
+    );
+  }
+
   if (data.success === false) {
     throw new Error(data.error || 'Google Sheet डेटा प्राप्त करने में त्रुटि हुई।');
   }
@@ -165,17 +233,6 @@ export async function fetchGoogleSheetData(
       spreadsheetUrl: data.spreadsheetUrl,
       headers: data.headers,
       rows: data.rows,
-    };
-  }
-
-  // Fallback for School_List if an older Apps Script deployment without action=sheetData is active
-  if (sheetName === 'School_List') {
-    const schools = await fetchSchoolDirectory();
-    return {
-      success: true,
-      sheetName: 'School_List',
-      headers: ['UDISE CODE', 'विद्यालय का नाम', 'न्याय पंचायत'],
-      rows: schools.map((s) => [s.udiseCode, s.schoolName, s.nyayPanchayat || '']),
     };
   }
 

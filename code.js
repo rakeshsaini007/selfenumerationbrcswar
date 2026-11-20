@@ -15,6 +15,9 @@
 const SHEET_SCHOOL_LIST = "School_List";
 const SHEET_DATA = "Data";
 
+// केवल एडमिन (App Developer) के लिए पासकोड — Google Sheet देखने हेतु इसे अपने अनुसार बदलें
+const DEFAULT_ADMIN_PASSCODE = "ADMIN@2026";
+
 const DATA_HEADERS = [
   "UDISE CODE",
   "विद्यालय का नाम",
@@ -230,10 +233,54 @@ function getSchoolList() {
   };
 }
 
+function getAdminPasscode() {
+  try {
+    const prop = PropertiesService.getScriptProperties().getProperty("ADMIN_PASSCODE");
+    if (prop && String(prop).trim()) {
+      return String(prop).trim();
+    }
+  } catch (err) {
+    // ignore property lookup errors
+  }
+  return DEFAULT_ADMIN_PASSCODE;
+}
+
+function isAdminAuthorized(adminKey) {
+  const provided = String(adminKey || "").trim();
+  const expected = String(getAdminPasscode() || "").trim();
+  return Boolean(provided && expected && provided === expected);
+}
+
 /**
- * Returns full display values and spreadsheet URL for "Data" or "School_List"
+ * Verifies Admin / App Developer passcode
  */
-function getSheetData(requestedSheet) {
+function verifyAdminAccess(adminKey) {
+  if (!isAdminAuthorized(adminKey)) {
+    return {
+      success: false,
+      authorized: false,
+      unauthorized: true,
+      error: "गलत Admin Passcode। यह सुविधा केवल एडमिन (App Developer) के लिए है।"
+    };
+  }
+  return {
+    success: true,
+    authorized: true
+  };
+}
+
+/**
+ * Returns full display values and spreadsheet URL for "Data" or "School_List" (Admin only)
+ */
+function getSheetData(requestedSheet, adminKey) {
+  if (!isAdminAuthorized(adminKey)) {
+    return {
+      success: false,
+      unauthorized: true,
+      error: "अनधिकृत पहुँच: Google Sheet केवल एडमिन (App Developer) द्वारा देखी जा सकती है।"
+    };
+  }
+
   const targetName = requestedSheet === SHEET_SCHOOL_LIST ? SHEET_SCHOOL_LIST : SHEET_DATA;
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(targetName);
@@ -392,7 +439,7 @@ function doGet(e) {
       return jsonResponse(getSchoolList());
     }
     if (action === "sheetData") {
-      return jsonResponse(getSheetData(params.sheet || SHEET_DATA));
+      return jsonResponse(getSheetData(params.sheet || SHEET_DATA, params.adminKey || ""));
     }
     if (action === "lookup") {
       return jsonResponse(lookupByUdise(params.udise || ""));
@@ -411,7 +458,7 @@ function doGet(e) {
 
 /**
  * Handles POST requests (sent with Content-Type: text/plain;charset=utf-8 to bypass CORS preflight)
- * Body JSON: { action: "save" | "update", udiseCode, schoolName, headmasterName, headmasterMobile, rows: [...] }
+ * Body JSON: { action: "save" | "update" | "verifyAdmin" | "sheetData", ... }
  */
 function doPost(e) {
   try {
@@ -421,6 +468,12 @@ function doPost(e) {
 
     if (action === "save" || action === "update") {
       return jsonResponse(saveOrUpdateData(payload));
+    }
+    if (action === "verifyAdmin") {
+      return jsonResponse(verifyAdminAccess(payload.adminKey || ""));
+    }
+    if (action === "sheetData") {
+      return jsonResponse(getSheetData(payload.sheet || SHEET_DATA, payload.adminKey || ""));
     }
 
     return jsonResponse({

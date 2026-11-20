@@ -4,42 +4,63 @@ import {
   ExternalLink,
   FileSpreadsheet,
   Loader2,
+  Lock,
   RefreshCw,
   Search,
   X,
 } from 'lucide-react';
-import { fetchGoogleSheetData } from '../services/appsScriptApi';
+import { AdminUnauthorizedError, fetchGoogleSheetData } from '../services/appsScriptApi';
 import type { GoogleSheetViewResponse } from '../types/school';
 
 interface GoogleSheetModalProps {
   open: boolean;
+  adminKey: string;
   onClose: () => void;
+  onUnauthorized: () => void;
+  onLockAdmin: () => void;
 }
 
 type SheetTab = 'Data' | 'School_List';
 
-export function GoogleSheetModal({ open, onClose }: GoogleSheetModalProps) {
+export function GoogleSheetModal({
+  open,
+  adminKey,
+  onClose,
+  onUnauthorized,
+  onLockAdmin,
+}: GoogleSheetModalProps) {
   const [activeSheet, setActiveSheet] = useState<SheetTab>('Data');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetData, setSheetData] = useState<GoogleSheetViewResponse | null>(null);
 
-  const loadSheet = useCallback(async (tab: SheetTab) => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchGoogleSheetData(tab);
-      setSheetData(data);
-    } catch (err) {
-      setSheetData(null);
-      setError(
-        err instanceof Error ? err.message : 'Google Sheet डेटा लोड करने में त्रुटि हुई।'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadSheet = useCallback(
+    async (tab: SheetTab) => {
+      if (!adminKey) {
+        onUnauthorized();
+        return;
+      }
+      setLoading(true);
+      setError('');
+      try {
+        const data = await fetchGoogleSheetData(tab, adminKey);
+        setSheetData(data);
+      } catch (err) {
+        setSheetData(null);
+        if (err instanceof AdminUnauthorizedError) {
+          onUnauthorized();
+          return;
+        }
+        setError(
+          err instanceof Error ? err.message : 'Google Sheet डेटा लोड करने में त्रुटि हुई।'
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [adminKey, onUnauthorized]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -113,9 +134,18 @@ export function GoogleSheetModal({ open, onClose }: GoogleSheetModalProps) {
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Google Sheet खोलें</span>
-                <span className="sm:hidden">Sheet खोलें</span>
+                <span className="sm:hidden">खोलें</span>
               </a>
             )}
+            <button
+              type="button"
+              onClick={onLockAdmin}
+              title="एडमिन सत्र लॉक करें"
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">लॉक करें</span>
+            </button>
             <button
               type="button"
               onClick={onClose}
