@@ -247,3 +247,58 @@ export async function fetchGoogleSheetData(
     'लाइव Google Sheet देखने के लिए कृपया अपने Google Apps Script में नवीनतम code.js पेस्ट करके नया वर्जन Deploy करें।'
   );
 }
+
+export async function removeDuplicateSeIdRows(
+  adminKey: string
+): Promise<{ removedCount: number; message: string }> {
+  const endpoint = getActiveAppsScriptUrl();
+  if (!endpoint) {
+    throw new Error(
+      'Google Apps Script URL कॉन्फ़िगर नहीं है। कृपया src/config/appsScriptConfig.ts में अपना Deploy URL दर्ज करें।'
+    );
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8',
+    },
+    body: JSON.stringify({
+      action: 'removeDuplicateSeIds',
+      adminKey: adminKey.trim(),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`सर्वर त्रुटि (${response.status}): डुप्लिकेट पंक्तियाँ हटाई नहीं जा सकीं।`);
+  }
+
+  const data = (await response.json()) as {
+    success?: boolean;
+    unauthorized?: boolean;
+    removedCount?: number;
+    message?: string;
+    error?: string;
+  };
+
+  if (data.unauthorized) {
+    throw new AdminUnauthorizedError(
+      data.error || 'अनधिकृत पहुँच: केवल एडमिन (App Developer) ही डुप्लिकेट पंक्तियाँ हटा सकते हैं।'
+    );
+  }
+
+  if (data.success !== true || typeof data.removedCount !== 'number') {
+    throw new Error(
+      data.error ||
+        'डुप्लिकेट हटाने की सुविधा के लिए कृपया Google Apps Script में नवीनतम code.js पेस्ट करके नया वर्जन Deploy करें।'
+    );
+  }
+
+  return {
+    removedCount: data.removedCount,
+    message:
+      data.message ||
+      `${data.removedCount} डुप्लिकेट SE ID पंक्तियाँ हटाई गईं।`,
+  };
+}

@@ -100,6 +100,18 @@ function findTimestampColIndex(headersRow, fallbackIndex) {
   return fallbackIndex;
 }
 
+function findSeIdColIndex(headersRow, fallbackIndex) {
+  if (Array.isArray(headersRow)) {
+    for (let c = 0; c < headersRow.length; c++) {
+      const h = String(headersRow[c] || "").trim().toLowerCase();
+      if (h.indexOf("se id") !== -1 || h.indexOf("se_id") !== -1 || h.indexOf("स्व गणना आइडी") !== -1) {
+        return c;
+      }
+    }
+  }
+  return fallbackIndex;
+}
+
 /**
  * Finds school name from "School_List" and existing saved rows from "Data"
  */
@@ -488,6 +500,136 @@ function saveOrUpdateData(payload) {
 }
 
 /**
+ * Removes rows having duplicate SE ID in "Data" sheet, keeping only the first row per SE ID.
+ */
+function removeDuplicateSeIdRowsCore() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+
+  try {
+    const ss = getSpreadsheet();
+    const dataSheet = ss.getSheetByName(SHEET_DATA);
+    if (!dataSheet || dataSheet.getLastRow() <= 1) {
+      return {
+        success: true,
+        removedCount: 0,
+        keptUniqueCount: 0,
+        message: "Data शीट में कोई डुप्लिकेट SE ID पंक्ति नहीं मिली।"
+      };
+    }
+
+    const values = dataSheet.getDataRange().getDisplayValues();
+    const seIdCol = findSeIdColIndex(values[0], 13);
+    const seenSeIds = {};
+    const duplicateRowIndices = [];
+
+    for (let i = 1; i < values.length; i++) {
+      const seIdVal = String(values[i][seIdCol] || "").trim().toUpperCase();
+      if (!seIdVal) {
+        continue;
+      }
+      if (seenSeIds[seIdVal]) {
+        duplicateRowIndices.push(i + 1);
+      } else {
+        seenSeIds[seIdVal] = true;
+      }
+    }
+
+    for (let k = duplicateRowIndices.length - 1; k >= 0; k--) {
+      dataSheet.deleteRow(duplicateRowIndices[k]);
+    }
+
+    const uniqueCount = Object.keys(seenSeIds).length;
+    return {
+      success: true,
+      removedCount: duplicateRowIndices.length,
+      keptUniqueCount: uniqueCount,
+      message:
+        duplicateRowIndices.length > 0
+          ? duplicateRowIndices.length +
+            " डुप्लिकेट SE ID पंक्तियाँ हटा दी गईं (प्रत्येक SE ID की 1 पंक्ति सुरक्षित रखी गई)।"
+          : "Data शीट में कोई डुप्लिकेट SE ID पंक्ति नहीं मिली।"
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Admin-protected wrapper for removing duplicate SE ID rows from the web app
+ */
+function removeDuplicateSeIdRowsAdmin(adminKey) {
+  if (!isAdminAuthorized(adminKey)) {
+    return {
+      success: false,
+      unauthorized: true,
+      error: "अनधिकृत पहुँच: केवल एडमिन (App Developer) ही डुप्लिकेट पंक्तियाँ हटा सकते हैं।"
+    };
+  }
+  return removeDuplicateSeIdRowsCore();
+}
+
+/**
+ * Adds a custom menu button inside Google Sheets toolbar on spreadsheet open.
+ * You can also assign `removeDuplicateSeIdRowsFromMenu` to any Drawing/Button on the sheet.
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("SE ID Tools")
+    .addItem("डुप्लिकेट SE ID पंक्तियाँ हटाएं (1 छोड़कर)", "removeDuplicateSeIdRowsFromMenu")
+    .addToUi();
+}
+
+/**
+ * Assignable to a Google Sheet Drawing button or triggered via the "SE ID Tools" menu.
+ */
+function removeDuplicateSeIdRowsFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = getSpreadsheet();
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+
+  if (!dataSheet || dataSheet.getLastRow() <= 1) {
+    ui.alert("Data शीट खाली है या मौजूद नहीं है।");
+    return;
+  }
+
+  const values = dataSheet.getDataRange().getDisplayValues();
+  const seIdCol = findSeIdColIndex(values[0], 13);
+  const seen = {};
+  let dupCount = 0;
+
+  for (let i = 1; i < values.length; i++) {
+    const seIdVal = String(values[i][seIdCol] || "").trim().toUpperCase();
+    if (!seIdVal) continue;
+    if (seen[seIdVal]) {
+      dupCount++;
+    } else {
+      seen[seIdVal] = true;
+    }
+  }
+
+  if (dupCount === 0) {
+    ui.alert("कोई डुप्लिकेट SE ID पंक्ति नहीं मिली। सभी SE ID अद्वितीय हैं।");
+    return;
+  }
+
+  const response = ui.alert(
+    "डुप्लिकेट SE ID हटाएं",
+    'शीट "Data" में ' +
+      dupCount +
+      " डुप्लिकेट SE ID पंक्तियाँ मिली हैं।\nक्या आप प्रत्येक SE ID की पहली 1 पंक्ति छोड़कर शेष डुप्लिकेट पंक्तियाँ हटाना चाहते हैं?",
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    return;
+  }
+
+  const result = removeDuplicateSeIdRowsCore();
+  ui.alert(result.message);
+}
+
+/**
  * Handles GET requests:
  * - ?action=lookup&udise=09050306501
  * - ?action=schools
@@ -520,7 +662,7 @@ function doGet(e) {
 
 /**
  * Handles POST requests (sent with Content-Type: text/plain;charset=utf-8 to bypass CORS preflight)
- * Body JSON: { action: "save" | "update" | "verifyAdmin" | "sheetData", ... }
+ * Body JSON: { action: "save" | "update" | "verifyAdmin" | "sheetData" | "removeDuplicateSeIds", ... }
  */
 function doPost(e) {
   try {
@@ -536,6 +678,9 @@ function doPost(e) {
     }
     if (action === "sheetData") {
       return jsonResponse(getSheetData(payload.sheet || SHEET_DATA, payload.adminKey || ""));
+    }
+    if (action === "removeDuplicateSeIds") {
+      return jsonResponse(removeDuplicateSeIdRowsAdmin(payload.adminKey || ""));
     }
 
     return jsonResponse({

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -11,9 +12,14 @@ import {
   Lock,
   RefreshCw,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
-import { AdminUnauthorizedError, fetchGoogleSheetData } from '../services/appsScriptApi';
+import {
+  AdminUnauthorizedError,
+  fetchGoogleSheetData,
+  removeDuplicateSeIdRows,
+} from '../services/appsScriptApi';
 import type { GoogleSheetViewResponse } from '../types/school';
 
 interface GoogleSheetModalProps {
@@ -42,6 +48,11 @@ export function GoogleSheetModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sheetData, setSheetData] = useState<GoogleSheetViewResponse | null>(null);
+  const [confirmDedupOpen, setConfirmDedupOpen] = useState(false);
+  const [dedupLoading, setDedupLoading] = useState(false);
+  const [dedupNotice, setDedupNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
 
   const scrollBodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -78,7 +89,11 @@ export function GoogleSheetModal({
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setConfirmDedupOpen(false);
+      setDedupNotice(null);
+      return;
+    }
     void loadSheet(activeSheet);
   }, [open, activeSheet, loadSheet]);
 
@@ -92,6 +107,59 @@ export function GoogleSheetModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
+
+  const duplicateSeIdRowCount = useMemo(() => {
+    if (activeSheet !== 'Data' || !sheetData?.rows?.length) return 0;
+    const headers = sheetData.headers || [];
+    let seIdCol = headers.findIndex((h) => {
+      const lower = String(h || '').trim().toLowerCase();
+      return (
+        lower.includes('se id') ||
+        lower.includes('se_id') ||
+        lower.includes('स्व गणना आइडी')
+      );
+    });
+    if (seIdCol < 0) seIdCol = 13;
+
+    const seen = new Set<string>();
+    let count = 0;
+    for (const row of sheetData.rows) {
+      const val = String(row[seIdCol] || '').trim().toUpperCase();
+      if (!val) continue;
+      if (seen.has(val)) {
+        count++;
+      } else {
+        seen.add(val);
+      }
+    }
+    return count;
+  }, [activeSheet, sheetData]);
+
+  const handleConfirmDeduplicate = async () => {
+    if (!adminKey) {
+      onUnauthorized();
+      return;
+    }
+    setDedupLoading(true);
+    setDedupNotice(null);
+    try {
+      const result = await removeDuplicateSeIdRows(adminKey);
+      setConfirmDedupOpen(false);
+      setDedupNotice({ type: 'success', text: result.message });
+      await loadSheet('Data');
+    } catch (err) {
+      if (err instanceof AdminUnauthorizedError) {
+        onUnauthorized();
+        return;
+      }
+      setDedupNotice({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'डुप्लिकेट SE ID हटाने में त्रुटि हुई।',
+      });
+    } finally {
+      setDedupLoading(false);
+    }
+  };
 
   const filteredRows = useMemo(() => {
     if (!sheetData?.rows) return [];
@@ -196,6 +264,8 @@ export function GoogleSheetModal({
               onClick={() => {
                 setSearchQuery('');
                 setCurrentPage(1);
+                setConfirmDedupOpen(false);
+                setDedupNotice(null);
                 setActiveSheet('Data');
               }}
               className={`min-h-[40px] px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
@@ -211,6 +281,8 @@ export function GoogleSheetModal({
               onClick={() => {
                 setSearchQuery('');
                 setCurrentPage(1);
+                setConfirmDedupOpen(false);
+                setDedupNotice(null);
                 setActiveSheet('School_List');
               }}
               className={`min-h-[40px] px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg border transition-colors cursor-pointer ${
@@ -231,8 +303,8 @@ export function GoogleSheetModal({
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full lg:w-auto">
-            <div className="relative flex-1 lg:w-72">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div className="relative flex-1 min-w-[200px] lg:w-64">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -245,6 +317,25 @@ export function GoogleSheetModal({
                 className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-base sm:text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
               />
             </div>
+
+            {activeSheet === 'Data' && !loading && !error && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDedupNotice(null);
+                  setConfirmDedupOpen((prev) => !prev);
+                }}
+                disabled={dedupLoading || totalRows === 0}
+                title="प्रत्येक SE ID की केवल 1 पंक्ति छोड़कर डुप्लिकेट पंक्तियाँ हटाएं"
+                className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3 py-2 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>
+                  डुप्लिकेट SE ID हटाएं
+                  {duplicateSeIdRowCount > 0 ? ` (${duplicateSeIdRowCount})` : ''}
+                </span>
+              </button>
+            )}
 
             <div className="hidden md:flex items-center gap-1 shrink-0">
               <button
@@ -270,7 +361,7 @@ export function GoogleSheetModal({
             <button
               type="button"
               onClick={() => void loadSheet(activeSheet)}
-              disabled={loading}
+              disabled={loading || dedupLoading}
               className="inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -278,6 +369,67 @@ export function GoogleSheetModal({
             </button>
           </div>
         </div>
+
+        {/* Deduplication Confirmation & Status Banner */}
+        {confirmDedupOpen && activeSheet === 'Data' && (
+          <div className="px-4 py-3 sm:px-6 bg-rose-50 border-b border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-rose-900">
+              {duplicateSeIdRowCount > 0 ? (
+                <>
+                  <strong>{duplicateSeIdRowCount}</strong> डुप्लिकेट SE ID पंक्तियाँ मिली हैं। क्या आप प्रत्येक SE ID की पहली 1 पंक्ति छोड़कर शेष डुप्लिकेट पंक्तियाँ Data शीट से हटाना चाहते हैं?
+                </>
+              ) : (
+                'Data शीट में कोई डुप्लिकेट SE ID पंक्ति नहीं मिली, फिर भी आप सर्वर पर जांच एवं सफाई चला सकते हैं।'
+              )}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setConfirmDedupOpen(false)}
+                disabled={dedupLoading}
+                className="min-h-[38px] px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDeduplicate()}
+                disabled={dedupLoading}
+                className="inline-flex items-center gap-1.5 min-h-[38px] px-3.5 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {dedupLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>हाँ, डुप्लिकेट हटाएं</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {dedupNotice && (
+          <div
+            className={`px-4 py-2.5 sm:px-6 border-b flex items-center justify-between gap-3 text-xs ${
+              dedupNotice.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : 'bg-rose-50 border-rose-200 text-rose-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {dedupNotice.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
+              )}
+              <span className="font-medium">{dedupNotice.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDedupNotice(null)}
+              aria-label="सूचना बंद करें"
+              className="p-1 rounded hover:bg-black/5 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Body */}
         <div ref={scrollBodyRef} className="flex-1 overflow-auto bg-white">
