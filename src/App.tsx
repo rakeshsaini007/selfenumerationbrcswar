@@ -319,6 +319,8 @@ export default function App() {
       return;
     }
 
+    const seenSeIds = new Map<string, number>();
+
     for (let i = 0; i < nonEmptyRows.length; i++) {
       const row = nonEmptyRows[i];
       if (!row.karmikName.trim()) {
@@ -334,14 +336,6 @@ export default function App() {
           'error',
           'पद नाम अनिवार्य है',
           `पंक्ति ${i + 1} (${row.karmikName}) में "पद नाम" दर्ज करें।`
-        );
-        return;
-      }
-      if (!row.officeName.trim()) {
-        showAlert(
-          'error',
-          'कार्यालय का नाम अनिवार्य है',
-          `पंक्ति ${i + 1} (${row.karmikName}) में "कार्यालय का नाम" दर्ज करें।`
         );
         return;
       }
@@ -377,7 +371,8 @@ export default function App() {
         );
         return;
       }
-      if (!/^P\d{11}$/.test(row.seId.trim())) {
+      const normalizedSeId = row.seId.trim().toUpperCase();
+      if (!/^P\d{11}$/.test(normalizedSeId)) {
         showAlert(
           'error',
           'स्व गणना आइडी (SE ID) अनिवार्य है',
@@ -385,6 +380,16 @@ export default function App() {
         );
         return;
       }
+      const prevRowIndex = seenSeIds.get(normalizedSeId);
+      if (prevRowIndex !== undefined) {
+        showAlert(
+          'error',
+          'डुप्लिकेट स्व गणना आइडी (SE ID)',
+          `पंक्ति ${i + 1} (${row.karmikName}) में दर्ज SE ID "${normalizedSeId}" पहले से पंक्ति ${prevRowIndex} में दर्ज है। प्रत्येक कार्मिक की SE ID अद्वितीय (Unique) होनी चाहिए।`
+        );
+        return;
+      }
+      seenSeIds.set(normalizedSeId, i + 1);
       if (!row.selfEnumDate.trim()) {
         showAlert(
           'error',

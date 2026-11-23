@@ -365,14 +365,70 @@ function saveOrUpdateData(payload) {
       };
     }
 
-    // Find existing rows for this UDISE CODE
+    // Validate SE ID format and uniqueness within submitted rows
+    const seenSeIdsInPayload = {};
+    for (let r = 0; r < rows.length; r++) {
+      const seIdVal = String(rows[r].seId || "").trim().toUpperCase();
+      if (!/^P\d{11}$/.test(seIdVal)) {
+        return {
+          success: false,
+          error:
+            "पंक्ति " +
+            (r + 1) +
+            ' में स्व गणना आइडी (SE ID) "P" से शुरू होकर ठीक 11 अंकों की होनी चाहिए।'
+        };
+      }
+      if (seenSeIdsInPayload[seIdVal]) {
+        return {
+          success: false,
+          error:
+            'डुप्लिकेट स्व गणना आइडी (SE ID): "' +
+            seIdVal +
+            '" पंक्ति ' +
+            seenSeIdsInPayload[seIdVal] +
+            " और पंक्ति " +
+            (r + 1) +
+            " दोनों में दर्ज है। प्रत्येक कार्मिक की SE ID अद्वितीय (Unique) होनी चाहिए।"
+        };
+      }
+      seenSeIdsInPayload[seIdVal] = r + 1;
+    }
+
+    // Find existing rows for this UDISE CODE and check SE ID uniqueness across all other schools
     const existingRowIndices = [];
+    const otherSchoolSeIds = {};
     if (dataSheet.getLastRow() > 1) {
       const existingValues = dataSheet.getDataRange().getDisplayValues();
       for (let i = 1; i < existingValues.length; i++) {
-        if (normalizeUdise(existingValues[i][0]) === targetUdise) {
+        const rowUdise = normalizeUdise(existingValues[i][0]);
+        if (rowUdise === targetUdise) {
           existingRowIndices.push(i + 1);
+        } else {
+          const existingSeId = String(existingValues[i][13] || "").trim().toUpperCase();
+          if (existingSeId && !otherSchoolSeIds[existingSeId]) {
+            otherSchoolSeIds[existingSeId] = {
+              udise: rowUdise,
+              schoolName: String(existingValues[i][1] || "").trim()
+            };
+          }
         }
+      }
+    }
+
+    for (let r = 0; r < rows.length; r++) {
+      const seIdVal = String(rows[r].seId || "").trim().toUpperCase();
+      const conflict = otherSchoolSeIds[seIdVal];
+      if (conflict) {
+        return {
+          success: false,
+          error:
+            'स्व गणना आइडी (SE ID) "' +
+            seIdVal +
+            '" पहले से UDISE ' +
+            conflict.udise +
+            (conflict.schoolName ? " (" + conflict.schoolName + ")" : "") +
+            " में दर्ज है। प्रत्येक कार्मिक की SE ID अद्वितीय (Unique) होनी चाहिए।"
+        };
       }
     }
 

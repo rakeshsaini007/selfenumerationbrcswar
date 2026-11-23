@@ -58,6 +58,7 @@ const DESIGNATION_OPTIONS = [
   'सफाईकर्मी',
   'आंगनवाड़ी',
   'रसोईया',
+  'ग्रामवासी',
 ] as const;
 
 const ENUMERATED_BY_OPTIONS = ['स्वयं', 'प्रधानाध्यापक', 'बीएलओ', 'अन्य'] as const;
@@ -83,6 +84,14 @@ export function KarmikTable({
   disabled = false,
 }: KarmikTableProps) {
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+
+  const seIdCounts = rows.reduce<Record<string, number>>((acc, r) => {
+    const key = r.seId.trim().toUpperCase();
+    if (key) {
+      acc[key] = (acc[key] || 0) + 1;
+    }
+    return acc;
+  }, {});
 
   const toggleMobileCard = (rowId: string) => {
     setCollapsedMap((prev) => ({ ...prev, [rowId]: !prev[rowId] }));
@@ -290,10 +299,15 @@ export function KarmikTable({
                       );
                     }
 
+                    const normalizedSeId = row.seId.trim().toUpperCase();
                     const isInvalidSeId =
                       col.key === 'seId' &&
-                      row.seId.length > 0 &&
-                      !/^P\d{11}$/.test(row.seId);
+                      normalizedSeId.length > 0 &&
+                      !/^P\d{11}$/.test(normalizedSeId);
+                    const isDuplicateSeId =
+                      col.key === 'seId' &&
+                      normalizedSeId.length > 0 &&
+                      (seIdCounts[normalizedSeId] || 0) > 1;
 
                     return (
                       <div key={col.key}>
@@ -318,7 +332,9 @@ export function KarmikTable({
                             onChangeRow(row.id, col.key, val);
                           }}
                           className={`w-full min-h-[44px] px-3.5 py-2.5 text-base bg-white border rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:bg-slate-100 ${
-                            isInvalidSeId
+                            isDuplicateSeId
+                              ? 'border-rose-400 focus:border-rose-600 focus:ring-rose-600/15'
+                              : isInvalidSeId
                               ? 'border-amber-400 focus:border-amber-600 focus:ring-amber-600/15'
                               : 'border-slate-300 focus:border-blue-600 focus:ring-blue-600/15'
                           } ${
@@ -327,10 +343,16 @@ export function KarmikTable({
                               : ''
                           } ${col.mono ? 'font-mono-code' : ''}`}
                         />
-                        {isInvalidSeId && (
-                          <p className="mt-1 text-xs text-amber-700">
-                            P के साथ ठीक 11 अंक दर्ज करें (उदा. P12345678945)
+                        {isDuplicateSeId ? (
+                          <p className="mt-1 text-xs text-rose-700">
+                            यह SE ID पहले से किसी अन्य पंक्ति में दर्ज है (Unique होनी चाहिए)
                           </p>
+                        ) : (
+                          isInvalidSeId && (
+                            <p className="mt-1 text-xs text-amber-700">
+                              P के साथ ठीक 11 अंक दर्ज करें (उदा. P12345678945)
+                            </p>
+                          )
                         )}
                       </div>
                     );
@@ -483,10 +505,15 @@ export function KarmikTable({
                     );
                   }
 
+                  const normalizedSeId = row.seId.trim().toUpperCase();
                   const isInvalidSeId =
                     col.key === 'seId' &&
-                    row.seId.length > 0 &&
-                    !/^P\d{11}$/.test(row.seId);
+                    normalizedSeId.length > 0 &&
+                    !/^P\d{11}$/.test(normalizedSeId);
+                  const isDuplicateSeId =
+                    col.key === 'seId' &&
+                    normalizedSeId.length > 0 &&
+                    (seIdCounts[normalizedSeId] || 0) > 1;
 
                   return (
                     <td key={col.key} className="p-1.5 border-r border-slate-200 align-middle">
@@ -498,7 +525,9 @@ export function KarmikTable({
                         disabled={disabled}
                         placeholder={col.placeholder}
                         title={
-                          col.key === 'seId'
+                          isDuplicateSeId
+                            ? 'यह SE ID पहले से किसी अन्य पंक्ति में दर्ज है (Unique होनी चाहिए)'
+                            : col.key === 'seId'
                             ? 'P से शुरू होकर ठीक 11 अंक दर्ज करें (उदा. P12345678945)'
                             : undefined
                         }
@@ -508,7 +537,9 @@ export function KarmikTable({
                           onChangeRow(row.id, col.key, val);
                         }}
                         className={`w-full px-2.5 py-2 text-sm bg-white border rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 disabled:bg-slate-100 ${
-                          isInvalidSeId
+                          isDuplicateSeId
+                            ? 'border-rose-400 focus:border-rose-600 focus:ring-rose-600/15'
+                            : isInvalidSeId
                             ? 'border-amber-400 focus:border-amber-600 focus:ring-amber-600/15'
                             : 'border-slate-200 focus:border-blue-600 focus:ring-blue-600/15'
                         } ${

@@ -106,7 +106,6 @@ export const KARMIK_TABLE_COLUMNS: {
     label: 'कार्यालय का नाम',
     placeholder: 'कार्यालय / विद्यालय',
     minWidth: 'min-w-[175px]',
-    required: true,
   },
   {
     key: 'departmentName',
